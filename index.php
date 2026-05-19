@@ -125,8 +125,12 @@ $db->exec("
         pin_hash    TEXT NOT NULL,
         created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS rate_limits (
+        ip          TEXT PRIMARY KEY,
+        attempts    INTEGER DEFAULT 0,
+        locked_until DATETIME
+    );
 ");
-// Migrate: add user_id to ledger if missing
 try { $db->exec("ALTER TABLE ledger ADD COLUMN user_id INTEGER"); } catch (PDOException $e) {}
 
 // --- Helpers ---
@@ -170,6 +174,13 @@ function dbExecWithRetry($db, $sql, $params = []) {
             usleep(50000);
         }
     }
+}
+
+function clientIp() {
+    foreach (['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR'] as $k) {
+        if (!empty($_SERVER[$k])) return preg_replace('/[^0-9a-f.:]/', '', explode(',', $_SERVER[$k])[0]);
+    }
+    return '0.0.0.0';
 }
 
 // --- Router ---
@@ -343,6 +354,18 @@ if ($uri === '/api/search' && $method === 'GET') {
 
 // --- API: Auth ---
 if ($uri === '/api/auth' && $method === 'POST') {
+    $ip = clientIp();
+    $stmt = $db->prepare("SELECT attempts, locked_until FROM rate_limits WHERE ip = ?");
+    $stmt->execute([$ip]);
+    $rl = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($rl && $rl['locked_until']) {
+        $lockedUntil = strtotime($rl['locked_until']);
+        if ($lockedUntil > time()) {
+            $remaining = ceil(($lockedUntil - time()) / 60);
+            jsonResponse(['error' => "Too many attempts. Try again in {$remaining} minutes."], 429);
+        }
+    }
+
     $input = json_decode(file_get_contents('php://input'), true);
     $pin = $input['pin'] ?? '';
     if (!preg_match('/^\d{4,8}$/', $pin)) {
@@ -355,7 +378,22 @@ if ($uri === '/api/auth' && $method === 'POST') {
     foreach ($users as $u) {
         if (password_verify($pin, $u['pin_hash'])) { $match = $u; break; }
     }
-    if (!$match) jsonResponse(['error' => 'PIN not recognized'], 401);
+    if (!$match) {
+        dbExecWithRetry($db,
+            "INSERT INTO rate_limits (ip, attempts, locked_until) VALUES (?, 1, NULL)
+             ON CONFLICT(ip) DO UPDATE SET attempts = CASE WHEN locked_until IS NULL OR locked_until < datetime('now') THEN 1 ELSE attempts + 1 END",
+            [$ip]
+        );
+        $stmt = $db->prepare("SELECT attempts FROM rate_limits WHERE ip = ?");
+        $stmt->execute([$ip]);
+        $attempts = (int)$stmt->fetchColumn();
+        if ($attempts >= 3) {
+            dbExecWithRetry($db, "UPDATE rate_limits SET locked_until = datetime('now', '+1 hour') WHERE ip = ?", [$ip]);
+            jsonResponse(['error' => 'Too many attempts. Locked out for 1 hour.'], 429);
+        }
+        jsonResponse(['error' => 'PIN not recognized'], 401);
+    }
+    dbExecWithRetry($db, "DELETE FROM rate_limits WHERE ip = ?", [$ip]);
     jsonResponse(['user' => ['id' => (int)$match['id'], 'name' => $match['name']]]);
 }
 
@@ -549,7 +587,7 @@ $('errorOverlay').addEventListener('click', (e) => { if (e.target === e.currentT
 // --- Auth ---
 let currentUser = null;
 function loadUser() {
-  try { var u = JSON.parse(localStorage.getItem('groscan_user')); if (u && u.id && u.name) currentUser = u; } catch (e) {}
+  try { var u = JSON.parse(localStorage.getItem('groscan_user')); if (u && u.id && u.name && u.expires_at && Date.now() < u.expires_at) currentUser = u; else { localStorage.removeItem('groscan_user'); } } catch (e) {}
   if (currentUser) {
     $('userBadge').textContent = currentUser.name;
     $('pinOverlay').style.display = 'none';
@@ -565,20 +603,12 @@ async function doAuth(pin) {
     const data = await res.json();
     if (!res.ok) { $('pinError').textContent = data.error || 'Not recognized'; $('pinError').style.display = 'block'; return; }
     currentUser = data.user;
+    currentUser.expires_at = Date.now() + 30 * 24 * 60 * 60 * 1000;
     localStorage.setItem('groscan_user', JSON.stringify(currentUser));
     $('userBadge').textContent = currentUser.name;
     $('pinOverlay').style.display = 'none';
   } catch (e) { $('pinError').textContent = 'Network error'; $('pinError').style.display = 'block'; }
 }
-async function doRegister(name, pin) {
-  try {
-    const res = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, pin }) });
-    const data = await res.json();
-    if (!res.ok) { $('pinError').textContent = data.error || 'Registration failed'; $('pinError').style.display = 'block'; return; }
-    currentUser = data.user;
-    localStorage.setItem('groscan_user', JSON.stringify(currentUser));
-    $('userBadge').textContent = currentUser.name;
-    $('pinOverlay').style.display = 'none';
 $('pinSubmit').addEventListener('click', () => { doAuth($('pinInput').value.trim()); });
 $('pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('pinSubmit').click(); });
 $('userBadge').addEventListener('click', () => {
