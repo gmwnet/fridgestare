@@ -318,6 +318,17 @@ if ($uri === '/api/ledger' && $method === 'GET') {
     jsonResponse(['entries' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
+// --- API: Search ---
+if ($uri === '/api/search' && $method === 'GET') {
+    $q = trim($_GET['q'] ?? '');
+    if (strlen($q) < 2) { jsonResponse(['results' => []]); }
+    $stmt = $db->prepare(
+        "SELECT DISTINCT upc, name, brand FROM products WHERE name LIKE ? ORDER BY name LIMIT 10"
+    );
+    $stmt->execute(['%' . $q . '%']);
+    jsonResponse(['results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+}
+
 // --- Page routes ---
 $page = 'scan';
 if ($uri === '/inventory') $page = 'inventory';
@@ -354,9 +365,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #reader video{width:100%;height:100%;object-fit:cover}
 #result{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);padding:12px 16px;transform:translateY(100%);transition:transform .3s}
 #result.show{transform:translateY(0)}
-.edit-field{width:100%;padding:6px 0;font-size:15px;background:transparent;border:none;border-bottom:1px solid #555;color:#fff;margin-bottom:2px;outline:none}
-.edit-field:focus{border-bottom-color:#007aff}
+.edit-field{width:100%;padding:14px 16px;font-size:20px;background:#222;border:1px solid #555;border-radius:8px;color:#fff;margin-bottom:6px;outline:none}
+.edit-field:focus{border-color:#007aff}
 .edit-field::placeholder{color:#666}
+#suggestions{position:absolute;left:0;right:0;top:100%;background:#222;border:1px solid #555;border-top:none;border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;display:none;z-index:10}
+#suggestions.show{display:block}
+#suggestions div{padding:12px 16px;font-size:16px;cursor:pointer;border-bottom:1px solid #333}
+#suggestions div:last-child{border-bottom:none}
+#suggestions div:hover,#suggestions div.active{background:#333}
+#suggestions .sug-brand{font-size:13px;color:#888}
 .actions{display:flex;gap:12px}
 .actions button{flex:1;padding:16px;font-size:18px;font-weight:600;border:none;border-radius:12px;cursor:pointer;touch-action:manipulation}
 #btnAdd{background:#34c759;color:#fff}
@@ -426,8 +443,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="scanner">
   <div id="reader"></div>
-  <div id="result">
-    <input type="text" id="editName" class="edit-field" placeholder="Product name (required)" autocomplete="off">
+    <div id="result">
+    <div style="position:relative">
+      <input type="text" id="editName" class="edit-field" placeholder="Product name (required)" autocomplete="off">
+      <div id="suggestions"></div>
+    </div>
     <input type="text" id="editBrand" class="edit-field" placeholder="Brand (optional)" autocomplete="off">
     <div id="prodQty" style="font-size:14px;color:#34c759;margin-bottom:8px"></div>
     <div class="actions">
@@ -635,9 +655,36 @@ $('btnCancel').addEventListener('click', () => {
   if (scanning) setTimeout(() => startScanner(), 300);
 });
 
+let suggestTimer = null;
 $('editName').addEventListener('input', () => {
   $('btnAdd').disabled = !$('editName').value.trim();
+  clearTimeout(suggestTimer);
+  const val = $('editName').value.trim();
+  if (val.length < 2) { $('suggestions').classList.remove('show'); return; }
+  suggestTimer = setTimeout(async () => {
+    try {
+      const res = await fetch('/api/search?q=' + encodeURIComponent(val));
+      const data = await res.json();
+      const list = $('suggestions');
+      list.innerHTML = data.results.map(r =>
+        '<div data-upc="' + r.upc + '" data-name="' + esc(r.name) + '" data-brand="' + esc(r.brand || '') + '">' +
+          esc(r.name) + (r.brand ? ' <span class="sug-brand">' + esc(r.brand) + '</span>' : '') +
+        '</div>'
+      ).join('');
+      if (data.results.length) { list.classList.add('show'); } else { list.classList.remove('show'); }
+      list.querySelectorAll('div').forEach(el => {
+        el.addEventListener('click', () => {
+          $('editName').value = el.dataset.name;
+          $('editBrand').value = el.dataset.brand;
+          $('suggestions').classList.remove('show');
+          $('btnAdd').disabled = false;
+          $('editName').focus();
+        });
+      });
+    } catch (e) {}
+  }, 200);
 });
+document.addEventListener('click', (e) => { if (!e.target.closest('#result > div')) $('suggestions').classList.remove('show'); });
 
 
 
