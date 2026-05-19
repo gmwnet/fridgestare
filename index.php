@@ -590,16 +590,6 @@ $('menuBtn').addEventListener('click', () => toggleMenu(true));
 $('overlay').addEventListener('click', () => toggleMenu(false));
 document.querySelectorAll('#sideMenu a').forEach(a => a.addEventListener('click', () => toggleMenu(false)));
 
-loadUser();
-
-// --- Error overlay ---
-function showError(msg) {
-  $('errorMsg').textContent = msg;
-  $('errorOverlay').classList.add('show');
-}
-$('errorClose').addEventListener('click', () => { $('errorOverlay').classList.remove('show'); if (page === 'scan' && scanning) setTimeout(() => startScanner(), 300); });
-$('errorOverlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) { $('errorOverlay').classList.remove('show'); if (page === 'scan' && scanning) setTimeout(() => startScanner(), 300); } });
-
 // --- Auth ---
 let currentUser = null;
 function loadUser() {
@@ -642,6 +632,16 @@ $('menuSwitchUser').addEventListener('click', (e) => {
   currentUser = null;
   loadUser();
 });
+
+loadUser();
+
+// --- Error overlay ---
+function showError(msg) {
+  $('errorMsg').textContent = msg;
+  $('errorOverlay').classList.add('show');
+}
+$('errorClose').addEventListener('click', () => { $('errorOverlay').classList.remove('show'); if (page === 'scan' && scanning) setTimeout(() => startScanner(), 300); });
+$('errorOverlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) { $('errorOverlay').classList.remove('show'); if (page === 'scan' && scanning) setTimeout(() => startScanner(), 300); } });
 
 // --- API helpers ---
 async function apiAction(upc, action, name, brand) {
