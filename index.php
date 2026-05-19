@@ -116,9 +116,18 @@ $db->exec("
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         upc         TEXT NOT NULL,
         action      TEXT NOT NULL,
+        user_id     INTEGER,
+        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS users (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT NOT NULL UNIQUE,
+        pin_hash    TEXT NOT NULL,
         created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 ");
+// Migrate: add user_id to ledger if missing
+try { $db->exec("ALTER TABLE ledger ADD COLUMN user_id INTEGER"); } catch (PDOException $e) {}
 
 // --- Helpers ---
 function normalizeUpc($upc) {
@@ -257,6 +266,8 @@ if ($uri === '/api/action' && $method === 'POST') {
     $upc = normalizeUpc($rawUpc);
     $name = $input['name'] ?? null;
     $brand = $input['brand'] ?? null;
+    $userId = $input['user_id'] ?? null;
+    if ($userId !== null) $userId = (int)$userId;
     if ($name !== null || $brand !== null) {
         $existing = $db->prepare("SELECT COUNT(*) FROM products WHERE upc = ?");
         $existing->execute([$upc]);
@@ -266,7 +277,7 @@ if ($uri === '/api/action' && $method === 'POST') {
             dbExecWithRetry($db, "INSERT INTO products (upc, name, brand) VALUES (?, ?, ?)", [$upc, $name, $brand]);
         }
     }
-    dbExecWithRetry($db, "INSERT INTO ledger (upc, action) VALUES (?, ?)", [$upc, $action]);
+    dbExecWithRetry($db, "INSERT INTO ledger (upc, action, user_id) VALUES (?, ?, ?)", [$upc, $action, $userId]);
     if ($action === 'add') {
         dbExecWithRetry($db,
             "INSERT INTO inventory (upc, quantity, updated_at)
@@ -309,9 +320,10 @@ if ($uri === '/api/inventory' && $method === 'GET') {
 // --- API: Ledger ---
 if ($uri === '/api/ledger' && $method === 'GET') {
     $stmt = $db->query(
-        "SELECT l.id, l.upc, COALESCE(p.name, 'Unknown') AS name, l.action, l.created_at
+        "SELECT l.id, l.upc, COALESCE(p.name, 'Unknown') AS name, l.action, l.created_at, u.name AS user
          FROM ledger l
          LEFT JOIN products p ON l.upc = p.upc
+         LEFT JOIN users u ON l.user_id = u.id
          ORDER BY l.id DESC
          LIMIT 200"
     );
@@ -327,6 +339,43 @@ if ($uri === '/api/search' && $method === 'GET') {
     );
     $stmt->execute(['%' . $q . '%']);
     jsonResponse(['results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+}
+
+// --- API: Auth ---
+if ($uri === '/api/auth' && $method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $pin = $input['pin'] ?? '';
+    if (!preg_match('/^\d{4,8}$/', $pin)) {
+        jsonResponse(['error' => 'PIN must be 4\u20138 digits'], 400);
+    }
+    $stmt = $db->prepare("SELECT id, name FROM users");
+    $stmt->execute();
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $match = null;
+    foreach ($users as $u) {
+        if (password_verify($pin, $u['pin_hash'])) { $match = $u; break; }
+    }
+    if (!$match) jsonResponse(['error' => 'PIN not recognized'], 401);
+    jsonResponse(['user' => ['id' => (int)$match['id'], 'name' => $match['name']]]);
+}
+if ($uri === '/api/auth/register' && $method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $name = trim($input['name'] ?? '');
+    $pin = $input['pin'] ?? '';
+    if (!preg_match('/^.{1,30}$/', $name) || !preg_match('/^\d{4,8}$/', $pin)) {
+        jsonResponse(['error' => 'Invalid name or PIN (4\u20138 digits)'], 400);
+    }
+    try {
+        $stmt = $db->prepare("INSERT INTO users (name, pin_hash) VALUES (?, ?)");
+        $stmt->execute([$name, password_hash($pin, PASSWORD_DEFAULT)]);
+        jsonResponse(['user' => ['id' => (int)$db->lastInsertId(), 'name' => $name]]);
+    } catch (PDOException $e) {
+        jsonResponse(['error' => 'Name already taken'], 409);
+    }
+}
+if ($uri === '/api/auth/users' && $method === 'GET') {
+    $stmt = $db->query("SELECT id, name FROM users ORDER BY name");
+    jsonResponse(['users' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
 // --- Page routes ---
@@ -387,6 +436,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #errorOverlay{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:32px 48px;border-radius:16px;font-size:20px;font-weight:600;z-index:300;display:none;text-align:center;background:#ff3b30;color:#fff;min-width:200px;max-width:80vw;line-height:1.4}
 #errorOverlay.show{display:block}
 #errorClose{position:absolute;top:2px;right:10px;background:none;border:none;color:#fff;font-size:36px;cursor:pointer;font-weight:700;line-height:1;padding:4px 8px}
+#pinOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:500;display:flex;align-items:center;justify-content:center}
+#pinBox{background:#1a1a1a;padding:32px;border-radius:16px;text-align:center;min-width:300px}
+#pinBox h2{font-size:22px;margin-bottom:4px}
+#pinBox p{color:#888;font-size:14px;margin-bottom:20px}
+#pinBox input{width:100%;padding:14px 16px;font-size:24px;text-align:center;border:1px solid #555;border-radius:8px;background:#222;color:#fff;outline:none;letter-spacing:8px}
+#pinBox input:focus{border-color:#007aff}
+#pinBox .pinBtns{display:flex;gap:10px;margin-top:16px}
+#pinBox .pinBtns button{flex:1;padding:12px;font-size:16px;font-weight:600;border:none;border-radius:8px;cursor:pointer}
+#pinError{color:#ff3b30;font-size:14px;margin-top:10px;display:none}
+#userBadge{font-size:14px;color:#007aff;margin-left:auto;padding:4px 10px;cursor:pointer;white-space:nowrap}
 #invPage{flex:1;overflow-y:auto;padding:12px 16px 8px}
 #invPage h2{font-size:18px;margin-bottom:12px}
 .invp-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #333}
@@ -412,18 +471,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="navBar">
   <button id="menuBtn">&#9776;</button>
   <span id="pageTitle"><?= $page === 'inventory' ? 'Inventory' : ($page === 'ledger' ? 'Ledger' : 'GroScan') ?></span>
+  <span id="userBadge"></span>
 </div>
 
 <div id="sideMenu">
   <a href="/" class="<?= $page === 'scan' ? 'active' : '' ?>">Scanner</a>
   <a href="/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">Inventory</a>
   <a href="/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">Ledger</a>
+  <a href="#" id="menuSwitchUser" style="border-top:1px solid #333;margin-top:8px">&#x21C4; Switch User</a>
 </div>
 
 <div id="overlay"></div>
 <div id="banner"></div>
 <div id="flash"></div>
 <div id="errorOverlay"><button id="errorClose">&times;</button><span id="errorMsg"></span></div>
+<div id="pinOverlay" style="display:none"><div id="pinBox">
+  <h2>Who's this?</h2>
+  <p>Enter your PIN</p>
+  <input type="tel" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
+  <div class="pinBtns"><button id="pinSubmit" style="background:#007aff;color:#fff">Enter</button><button id="pinRegister" style="background:#555;color:#fff">New user</button></div>
+  <div id="pinError">PIN not recognized</div>
+</div></div>
 
 <?php if ($page === 'inventory'): ?>
 
@@ -487,6 +555,8 @@ $('menuBtn').addEventListener('click', () => toggleMenu(true));
 $('overlay').addEventListener('click', () => toggleMenu(false));
 document.querySelectorAll('#sideMenu a').forEach(a => a.addEventListener('click', () => toggleMenu(false)));
 
+loadUser();
+
 // --- Error overlay ---
 function showError(msg) {
   $('errorMsg').textContent = msg;
@@ -495,12 +565,68 @@ function showError(msg) {
 $('errorClose').addEventListener('click', () => { $('errorOverlay').classList.remove('show'); if (page === 'scan' && scanning) setTimeout(() => startScanner(), 300); });
 $('errorOverlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) { $('errorOverlay').classList.remove('show'); if (page === 'scan' && scanning) setTimeout(() => startScanner(), 300); } });
 
+// --- Auth ---
+let currentUser = null;
+function loadUser() {
+  try { var u = JSON.parse(localStorage.getItem('groscan_user')); if (u && u.id && u.name) currentUser = u; } catch (e) {}
+  if (currentUser) {
+    $('userBadge').textContent = currentUser.name;
+    $('pinOverlay').style.display = 'none';
+  } else {
+    $('userBadge').textContent = '';
+    $('pinOverlay').style.display = 'flex';
+    $('pinInput').focus();
+  }
+}
+async function doAuth(pin) {
+  try {
+    const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin }) });
+    const data = await res.json();
+    if (!res.ok) { $('pinError').textContent = data.error || 'Not recognized'; $('pinError').style.display = 'block'; return; }
+    currentUser = data.user;
+    localStorage.setItem('groscan_user', JSON.stringify(currentUser));
+    $('userBadge').textContent = currentUser.name;
+    $('pinOverlay').style.display = 'none';
+  } catch (e) { $('pinError').textContent = 'Network error'; $('pinError').style.display = 'block'; }
+}
+async function doRegister(name, pin) {
+  try {
+    const res = await fetch('/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, pin }) });
+    const data = await res.json();
+    if (!res.ok) { $('pinError').textContent = data.error || 'Registration failed'; $('pinError').style.display = 'block'; return; }
+    currentUser = data.user;
+    localStorage.setItem('groscan_user', JSON.stringify(currentUser));
+    $('userBadge').textContent = currentUser.name;
+    $('pinOverlay').style.display = 'none';
+  } catch (e) { $('pinError').textContent = 'Network error'; $('pinError').style.display = 'block'; }
+}
+$('pinSubmit').addEventListener('click', () => { doAuth($('pinInput').value.trim()); });
+$('pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('pinSubmit').click(); });
+$('pinRegister').addEventListener('click', () => {
+  var n = prompt('Enter your name:');
+  if (!n || !n.trim()) return;
+  var p = prompt('Enter a 4-8 digit PIN:');
+  if (!p || !p.match(/^\d{4,8}$/)) { alert('PIN must be 4-8 digits'); return; }
+  doRegister(n.trim(), p);
+});
+$('userBadge').addEventListener('click', () => {
+  localStorage.removeItem('groscan_user');
+  currentUser = null;
+  loadUser();
+});
+$('menuSwitchUser').addEventListener('click', (e) => {
+  e.preventDefault(); toggleMenu(false);
+  localStorage.removeItem('groscan_user');
+  currentUser = null;
+  loadUser();
+});
+
 // --- API helpers ---
 async function apiAction(upc, action, name, brand) {
   const res = await fetch('/api/action', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ upc, action, name: name || null, brand: brand || null })
+    body: JSON.stringify({ upc, action, name: name || null, brand: brand || null, user_id: currentUser ? currentUser.id : null })
   });
   return res.json();
 }
@@ -568,7 +694,7 @@ async function loadLedger() {
     const data = await res.json();
     $('lgList').innerHTML = data.entries.map(e =>
       '<div class="lg-entry">' +
-        '<span class="lg-name">' + esc(e.name || 'Unknown') + '</span>' +
+        '<span class="lg-name">' + esc(e.name || 'Unknown') + (e.user ? ' <span style="color:#007aff;font-size:12px">(' + esc(e.user) + ')</span>' : '') + '</span>' +
         '<span class="lg-action lg-' + e.action + '">' + e.action.toUpperCase() + '</span>' +
         '<span class="lg-time">' + e.created_at + '</span>' +
       '</div>'
