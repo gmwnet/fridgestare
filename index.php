@@ -358,25 +358,6 @@ if ($uri === '/api/auth' && $method === 'POST') {
     if (!$match) jsonResponse(['error' => 'PIN not recognized'], 401);
     jsonResponse(['user' => ['id' => (int)$match['id'], 'name' => $match['name']]]);
 }
-if ($uri === '/api/auth/register' && $method === 'POST') {
-    $input = json_decode(file_get_contents('php://input'), true);
-    $name = trim($input['name'] ?? '');
-    $pin = $input['pin'] ?? '';
-    if (!preg_match('/^.{1,30}$/', $name) || !preg_match('/^\d{4,8}$/', $pin)) {
-        jsonResponse(['error' => 'Invalid name or PIN (4\u20138 digits)'], 400);
-    }
-    try {
-        $stmt = $db->prepare("INSERT INTO users (name, pin_hash) VALUES (?, ?)");
-        $stmt->execute([$name, password_hash($pin, PASSWORD_DEFAULT)]);
-        jsonResponse(['user' => ['id' => (int)$db->lastInsertId(), 'name' => $name]]);
-    } catch (PDOException $e) {
-        jsonResponse(['error' => 'Name already taken'], 409);
-    }
-}
-if ($uri === '/api/auth/users' && $method === 'GET') {
-    $stmt = $db->query("SELECT id, name FROM users ORDER BY name");
-    jsonResponse(['users' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
-}
 
 // --- Page routes ---
 $page = 'scan';
@@ -489,7 +470,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <h2>Who's this?</h2>
   <p>Enter your PIN</p>
   <input type="tel" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
-  <div class="pinBtns"><button id="pinSubmit" style="background:#007aff;color:#fff">Enter</button><button id="pinRegister" style="background:#555;color:#fff">New user</button></div>
+  <div class="pinBtns"><button id="pinSubmit" style="background:#007aff;color:#fff">Enter</button></div>
   <div id="pinError">PIN not recognized</div>
 </div></div>
 
@@ -598,17 +579,8 @@ async function doRegister(name, pin) {
     localStorage.setItem('groscan_user', JSON.stringify(currentUser));
     $('userBadge').textContent = currentUser.name;
     $('pinOverlay').style.display = 'none';
-  } catch (e) { $('pinError').textContent = 'Network error'; $('pinError').style.display = 'block'; }
-}
 $('pinSubmit').addEventListener('click', () => { doAuth($('pinInput').value.trim()); });
 $('pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('pinSubmit').click(); });
-$('pinRegister').addEventListener('click', () => {
-  var n = prompt('Enter your name:');
-  if (!n || !n.trim()) return;
-  var p = prompt('Enter a 4-8 digit PIN:');
-  if (!p || !p.match(/^\d{4,8}$/)) { alert('PIN must be 4-8 digits'); return; }
-  doRegister(n.trim(), p);
-});
 $('userBadge').addEventListener('click', () => {
   localStorage.removeItem('groscan_user');
   currentUser = null;
