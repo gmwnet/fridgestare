@@ -32,10 +32,12 @@ function loadUser() {
     $('userBadge').textContent = currentUser.name;
     $('logoutIcon').style.display = 'inline';
     $('pinOverlay').style.display = 'none';
+    if (page === 'scan' && !html5QrCode) { scanning = true; startScanner(); }
   } else {
     $('userBadge').textContent = '';
     $('logoutIcon').style.display = 'none';
     if (html5QrCode) { try { html5QrCode.stop(); } catch (e) {} }
+    scanning = false;
     $('pinOverlay').style.display = 'flex';
     $('pinInput').focus();
     turnstileToken = null; if (window.turnstile) turnstile.reset();
@@ -55,6 +57,7 @@ async function doAuth(pin) {
     $('logoutIcon').style.display = 'inline';
     $('pinOverlay').style.display = 'none';
     turnstileToken = null;
+    if (page === 'scan') { scanning = true; startScanner(); }
   } catch (e) { $('pinError').textContent = 'Network error'; $('pinError').style.display = 'block'; }
 }
 $('pinSubmit').addEventListener('click', function() { doAuth($('pinInput').value.trim()); });
