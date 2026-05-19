@@ -102,6 +102,17 @@ async function apiAction(upc, action, name, brand) {
 
 function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
+function dom(tag, attrs) {
+  var el = document.createElement(tag);
+  if (attrs) for (var k in attrs) el.setAttribute(k, attrs[k]);
+  for (var i = 2; i < arguments.length; i++) {
+    var c = arguments[i];
+    if (typeof c === 'string') el.appendChild(document.createTextNode(c));
+    else if (c) el.appendChild(c);
+  }
+  return el;
+}
+
 // --- Manual entry ---
 $('btnManual').addEventListener('click', function() {
   var upc = $('manualUpc').value.trim();
@@ -202,22 +213,24 @@ async function loadInvPage() {
   try {
     var res = await fetch('/api/inventory');
     var data = await res.json();
-    $('invpList').innerHTML = data.items.map(function(item) {
-      return '<div class="invp-item">' +
-        '<span class="invp-name">' + esc(item.name) + '</span>' +
-        '<span class="invp-qty">' + item.qty + '</span>' +
-        '<button class="invp-btn invp-take" data-upc="' + item.upc + '" data-action="take">\u2212</button>' +
-        '<button class="invp-btn invp-add" data-upc="' + item.upc + '" data-action="add">+</button>' +
-      '</div>';
-    }).join('');
-    document.querySelectorAll('#invpList .invp-btn').forEach(function(btn) {
-      btn.addEventListener('click', async function() {
+    var list = $('invpList');
+    while (list.firstChild) list.removeChild(list.firstChild);
+    data.items.forEach(function(item) {
+      var name = dom('span', {'class':'invp-name'}, esc(item.name));
+      var qty = dom('span', {'class':'invp-qty'}, String(item.qty));
+      var take = dom('button', {'class':'invp-btn invp-take', 'data-upc':item.upc, 'data-action':'take'}, '\u2212');
+      var add = dom('button', {'class':'invp-btn invp-add', 'data-upc':item.upc, 'data-action':'add'}, '+');
+      take.addEventListener('click', async function() {
         $('manualUpc').value = '';
-        var upc = btn.dataset.upc;
-        var action = btn.dataset.action;
-        var data2 = await apiAction(upc, action);
-        if (data2.success) loadInvPage();
+        var d = await apiAction(this.dataset.upc, 'take');
+        if (d.success) loadInvPage();
       });
+      add.addEventListener('click', async function() {
+        $('manualUpc').value = '';
+        var d = await apiAction(this.dataset.upc, 'add');
+        if (d.success) loadInvPage();
+      });
+      list.appendChild(dom('div', {'class':'invp-item'}, name, qty, take, add));
     });
   } catch (e) {}
 }
@@ -230,13 +243,15 @@ async function loadLedger() {
   try {
     var res = await fetch('/api/ledger');
     var data = await res.json();
-    $('lgList').innerHTML = data.entries.map(function(e) {
-      return '<div class="lg-entry">' +
-        '<span class="lg-name">' + esc(e.name || 'Unknown') + (e.user ? ' <span style="color:#007aff;font-size:12px">(' + esc(e.user) + ')</span>' : '') + '</span>' +
-        '<span class="lg-action lg-' + e.action + '">' + e.action.toUpperCase() + '</span>' +
-        '<span class="lg-time">' + e.created_at + '</span>' +
-      '</div>';
-    }).join('');
+    var list = $('lgList');
+    while (list.firstChild) list.removeChild(list.firstChild);
+    data.entries.forEach(function(e) {
+      var name = dom('span', {'class':'lg-name'}, e.name || 'Unknown');
+      if (e.user) name.appendChild(dom('span', {'style':'color:#007aff;font-size:12px'}, ' (' + esc(e.user) + ')'));
+      var action = dom('span', {'class':'lg-action lg-' + e.action}, e.action.toUpperCase());
+      var time = dom('span', {'class':'lg-time'}, e.created_at);
+      list.appendChild(dom('div', {'class':'lg-entry'}, name, action, time));
+    });
   } catch (e) {}
 }
 
@@ -264,20 +279,18 @@ $('editName').addEventListener('input', function() {
       var res = await fetch('/api/search?q=' + encodeURIComponent(val));
       var data = await res.json();
       var list = $('suggestions');
-      list.innerHTML = data.results.map(function(r) {
-        return '<div data-upc="' + r.upc + '" data-name="' + esc(r.name) + '" data-brand="' + esc(r.brand || '') + '">' +
-          esc(r.name) + (r.brand ? ' <span class="sug-brand">' + esc(r.brand) + '</span>' : '') +
-        '</div>';
-      }).join('');
-      if (data.results.length) { list.classList.add('show'); } else { list.classList.remove('show'); }
-      list.querySelectorAll('div').forEach(function(el) {
-        el.addEventListener('click', function() {
-          $('editName').value = el.dataset.name;
-          $('editBrand').value = el.dataset.brand;
+      while (list.firstChild) list.removeChild(list.firstChild);
+      data.results.forEach(function(r) {
+        var div = dom('div', {'data-upc':r.upc, 'data-name':r.name, 'data-brand':r.brand || ''}, esc(r.name));
+        if (r.brand) div.appendChild(dom('span', {'class':'sug-brand'}, ' ' + esc(r.brand)));
+        div.addEventListener('click', function() {
+          $('editName').value = this.dataset.name;
+          $('editBrand').value = this.dataset.brand;
           $('suggestions').classList.remove('show');
           $('btnAdd').disabled = false;
           $('editName').focus();
         });
+        list.appendChild(div);
       });
     } catch (e) {}
   }, 200);
