@@ -3,6 +3,7 @@
 // Single-file PHP app: scan barcodes, look up products, manage inventory
 
 $dbPath = __DIR__ . '/groscan.db';
+$cfg = (file_exists(__DIR__ . '/config.php')) ? include __DIR__ . '/config.php' : [];
 
 // --- UPC Lookup Providers ---
 
@@ -48,6 +49,51 @@ class OpenFoodFactsProvider extends UpcLookupProvider {
     }
 }
 
+class UpcItemDbProvider extends UpcLookupProvider {
+    private $apiKey;
+
+    public function __construct($apiKey) {
+        $this->apiKey = $apiKey;
+    }
+
+    public function lookup($upc) {
+        $url = 'https://api.upcitemdb.com/prod/trial/lookup?upc=' . $upc;
+        $response = null;
+        $httpCode = 0;
+        $headers = ['Accept: application/json'];
+        if ($this->apiKey) $headers[] = 'user_key: ' . $this->apiKey;
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 5,
+                CURLOPT_USERAGENT => 'GroScan/1.0',
+                CURLOPT_HTTPHEADER => $headers,
+                CURLOPT_FOLLOWLOCATION => true,
+            ]);
+            $response = @curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+        } else {
+            $ctx = stream_context_create(['http' => ['timeout' => 5, 'user_agent' => 'GroScan/1.0', 'header' => implode("\r\n", $headers)]]);
+            $response = @file_get_contents($url, false, $ctx);
+            $httpCode = isset($http_response_header) ? (int)explode(' ', $http_response_header[0])[1] : 0;
+        }
+        if ($response === false || $httpCode !== 200) return null;
+        $data = json_decode($response, true);
+        $items = $data['items'] ?? [];
+        if (empty($items)) return null;
+        $item = $items[0];
+        return [
+            'name'     => $item['title'] ?? null,
+            'brand'    => $item['brand'] ?? null,
+            'category' => $item['category'] ?? null,
+            'quantity' => null,
+            'image_url'=> ($item['images'] ?? [])[0] ?? null,
+        ];
+    }
+}
+
 // --- DB Init ---
 $db = new PDO("sqlite:$dbPath");
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -76,7 +122,23 @@ $db->exec("
 
 // --- Helpers ---
 function normalizeUpc($upc) {
-    return str_pad(preg_replace('/[^0-9]/', '', $upc), 13, '0', STR_PAD_LEFT);
+    $digits = preg_replace('/[^0-9]/', '', $upc);
+    $len = strlen($digits);
+    if ($len === 12) return '0' . $digits;
+    if ($len === 14) return substr($digits, 1);
+    return $digits;
+}
+
+function getUpcVariants($rawUpc) {
+    $d = preg_replace('/[^0-9]/', '', $rawUpc);
+    $variants = [normalizeUpc($rawUpc)];
+    if (strlen($d) === 12) {
+        $variants[] = $d;
+        $sum = 0;
+        for ($i = 0; $i < 12; $i++) $sum += (int)$d[$i] * ($i % 2 === 0 ? 1 : 3);
+        $variants[] = $d . ((10 - ($sum % 10)) % 10);
+    }
+    return array_unique($variants);
 }
 
 function jsonResponse($data, $code = 200) {
@@ -109,20 +171,47 @@ $uri = rtrim($uri, '/') ?: '/';
 // --- API: Lookup ---
 if ($uri === '/api/lookup' && $method === 'GET') {
     $rawUpc = $_GET['upc'] ?? '';
-    if (!preg_match('/^\d{12,13}$/', $rawUpc)) {
-        jsonResponse(['error' => 'Invalid UPC — must be 12 or 13 digits'], 400);
+    if (!preg_match('/^\d{8,14}$/', $rawUpc)) {
+        jsonResponse(['error' => 'Invalid UPC'], 400);
     }
     $upc = normalizeUpc($rawUpc);
+    $variants = getUpcVariants($rawUpc);
 
-    // Check local cache
-    $stmt = $db->prepare("SELECT * FROM products WHERE upc = ?");
-    $stmt->execute([$upc]);
-    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Check local cache first — skip network if found
+    $product = null;
+    foreach ($variants as $v) {
+        $stmt = $db->prepare("SELECT * FROM products WHERE upc = ?");
+        $stmt->execute([$v]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($row && $row['name']) { $product = $row; $upc = $v; break; }
+    }
+    if ($product) {
+        $stmt = $db->prepare("SELECT quantity FROM inventory WHERE upc = ?");
+        $stmt->execute([$upc]);
+        $inv = $stmt->fetch(PDO::FETCH_ASSOC);
+        jsonResponse([
+            'upc' => $upc,
+            'product' => [
+                'name' => $product['name'],
+                'brand' => $product['brand'],
+                'category' => $product['category'],
+                'quantity' => $product['quantity'],
+                'image_url' => $product['image_url'],
+            ],
+            'inventory_qty' => $inv ? (int)$inv['quantity'] : 0,
+            'warning' => null,
+        ]);
+    }
 
     $warning = null;
+    $productData = null;
     $provider = new OpenFoodFactsProvider();
-    $productData = $provider->lookup($upc);
-
+    foreach ($variants as $v) {
+        $productData = $provider->lookup($v);
+        if ($productData !== null) { $upc = $v; break; }
+        $productData = (new UpcItemDbProvider($cfg['upcitemdb_key'] ?? ''))->lookup($v);
+        if ($productData !== null) { $upc = $v; break; }
+    }
     if ($productData !== null) {
         // Cache fresh data
         $productData['upc'] = $upc;
@@ -135,10 +224,6 @@ if ($uri === '/api/lookup' && $method === 'GET') {
             $productData['category'], $productData['quantity'], $productData['image_url']
         ]);
         $product = $productData;
-    } elseif ($row) {
-        // API failed, serve cached
-        $product = $row;
-        $warning = 'Using cached data \u2014 network unavailable.';
     } else {
         $product = null;
         $warning = 'Could not look up product.';
@@ -166,7 +251,7 @@ if ($uri === '/api/action' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
     $rawUpc = $input['upc'] ?? '';
     $action = $input['action'] ?? '';
-    if (!preg_match('/^\d{12,13}$/', $rawUpc) || !in_array($action, ['add', 'take'])) {
+    if (!preg_match('/^\d{8,14}$/', $rawUpc) || !in_array($action, ['add', 'take'])) {
         jsonResponse(['error' => 'Invalid request'], 400);
     }
     $upc = normalizeUpc($rawUpc);
@@ -213,7 +298,7 @@ if ($uri === '/api/inventory' && $method === 'GET') {
          FROM inventory i
          LEFT JOIN products p ON i.upc = p.upc
          WHERE i.quantity > 0
-         ORDER BY i.updated_at DESC"
+         ORDER BY name COLLATE NOCASE ASC"
     );
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     jsonResponse(['items' => array_map(function ($r) {
@@ -261,6 +346,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #sideMenu a.active{color:#fff;background:#333;border-left:3px solid #007aff}
 #overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:150;display:none}
 #overlay.show{display:block}
+#flash{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:24px 48px;border-radius:16px;font-size:24px;font-weight:700;z-index:300;display:none;pointer-events:none}
+#flash.show{display:block}
+#flash.add{background:#34c759;color:#fff}
+#flash.take{background:#ff9500;color:#fff}
 #scanner{flex:1;position:relative;background:#111;overflow:hidden}
 #reader video{width:100%;height:100%;object-fit:cover}
 #result{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);padding:12px 16px;transform:translateY(100%);transition:transform .3s}
@@ -271,11 +360,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .actions{display:flex;gap:12px}
 .actions button{flex:1;padding:16px;font-size:18px;font-weight:600;border:none;border-radius:12px;cursor:pointer;touch-action:manipulation}
 #btnAdd{background:#34c759;color:#fff}
-#btnTake{background:#ff3b30;color:#fff}
+#btnTake{background:#ff9500;color:#fff}
 #manual{position:fixed;bottom:0;left:0;right:0;display:flex;gap:8px;padding:8px 12px;background:#1a1a1a;z-index:60}
-#manual input{flex:1;padding:10px 12px;font-size:16px;border:1px solid #555;border-radius:8px;background:#222;color:#fff}
-#manual button{padding:10px 20px;font-size:16px;border:none;border-radius:8px;background:#007aff;color:#fff;cursor:pointer}
+#manual input{flex:1;padding:14px 44px 14px 16px;font-size:20px;border:1px solid #555;border-radius:8px;background:#222;color:#fff}
+#manual button{padding:14px 24px;font-size:20px;border:none;border-radius:8px;background:#007aff;color:#fff;cursor:pointer}
+#clearUpc{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:#666;font-size:24px;cursor:pointer;line-height:1;padding:4px 8px;display:none;z-index:5}
+#manualInputWrap{position:relative;flex:1;display:flex}
 #banner{position:fixed;top:48px;left:0;right:0;background:#ff9500;color:#000;padding:8px 16px;font-size:13px;text-align:center;z-index:100;display:none}
+#errorOverlay{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:32px 48px;border-radius:16px;font-size:20px;font-weight:600;z-index:300;display:none;text-align:center;background:#ff3b30;color:#fff;min-width:200px;max-width:80vw;line-height:1.4}
+#errorOverlay.show{display:block}
+#errorClose{position:absolute;top:2px;right:10px;background:none;border:none;color:#fff;font-size:36px;cursor:pointer;font-weight:700;line-height:1;padding:4px 8px}
 #invPage{flex:1;overflow-y:auto;padding:12px 16px 8px}
 #invPage h2{font-size:18px;margin-bottom:12px}
 .invp-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #333}
@@ -284,8 +378,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .invp-qty{font-size:15px;color:#34c759;font-weight:600;min-width:24px;text-align:center}
 .invp-btn{padding:8px 16px;font-size:16px;font-weight:600;border:none;border-radius:8px;cursor:pointer;touch-action:manipulation;min-width:48px}
 .invp-add{background:#34c759;color:#fff}
-.invp-take{background:#ff3b30;color:#fff}
-.error-text{color:#ff3b30;font-size:13px;margin-top:4px}
+.invp-take{background:#ff9500;color:#fff}
 #lgPage{flex:1;overflow-y:auto;padding:12px 16px 8px}
 #lgPage h2{font-size:18px;margin-bottom:12px}
 .lg-entry{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #333;font-size:13px}
@@ -312,6 +405,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="overlay"></div>
 <div id="banner"></div>
+<div id="flash"></div>
+<div id="errorOverlay"><button id="errorClose">&times;</button><span id="errorMsg"></span></div>
 
 <?php if ($page === 'inventory'): ?>
 
@@ -340,14 +435,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <button id="btnTake">TAKE</button>
       <button id="btnCancel" style="background:#555;color:#fff;flex:0.5">Cancel</button>
     </div>
-    <div id="prodError" class="error-text"></div>
   </div>
 </div>
 
 <?php endif; ?>
 
 <div id="manual">
-  <input type="text" id="manualUpc" inputmode="numeric" pattern="[0-9]*" placeholder="Enter UPC..." maxlength="13">
+  <div id="manualInputWrap">
+    <input type="text" id="manualUpc" inputmode="numeric" pattern="[0-9]*" placeholder="Enter UPC..." maxlength="14">
+    <button id="clearUpc">&times;</button>
+  </div>
   <button id="btnManual">Lookup</button>
 </div>
 
@@ -364,13 +461,13 @@ $('menuBtn').addEventListener('click', () => toggleMenu(true));
 $('overlay').addEventListener('click', () => toggleMenu(false));
 document.querySelectorAll('#sideMenu a').forEach(a => a.addEventListener('click', () => toggleMenu(false)));
 
-// --- Banner ---
-function showBanner(msg, persistent) {
-  const b = $('banner');
-  b.textContent = msg;
-  b.style.display = 'block';
-  if (!persistent) setTimeout(() => b.style.display = 'none', 3000);
+// --- Error overlay ---
+function showError(msg) {
+  $('errorMsg').textContent = msg;
+  $('errorOverlay').classList.add('show');
 }
+$('errorClose').addEventListener('click', () => { $('errorOverlay').classList.remove('show'); if (page === 'scan' && scanning) setTimeout(() => startScanner(), 300); });
+$('errorOverlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) { $('errorOverlay').classList.remove('show'); if (page === 'scan' && scanning) setTimeout(() => startScanner(), 300); } });
 
 // --- API helpers ---
 async function apiAction(upc, action, name, brand) {
@@ -387,7 +484,7 @@ function esc(s) { var d = document.createElement('div'); d.textContent = s; retu
 // --- Manual entry ---
 $('btnManual').addEventListener('click', () => {
   const upc = $('manualUpc').value.trim();
-  if (upc.length < 12) { return; }
+  if (upc.length < 8) { showError('UPC must be 8\u201314 digits.'); return; }
   $('manualUpc').value = '';
   if (page !== 'scan') {
     window.location.href = '/?upc=' + encodeURIComponent(upc);
@@ -397,6 +494,14 @@ $('btnManual').addEventListener('click', () => {
 });
 $('manualUpc').addEventListener('keydown', e => {
   if (e.key === 'Enter') $('btnManual').click();
+});
+$('manualUpc').addEventListener('input', () => {
+  $('clearUpc').style.display = $('manualUpc').value ? 'block' : 'none';
+});
+$('clearUpc').addEventListener('click', () => {
+  $('manualUpc').value = '';
+  $('manualUpc').focus();
+  $('clearUpc').style.display = 'none';
 });
 
 <?php if ($page === 'inventory'): ?>
@@ -464,13 +569,13 @@ function startScanner() {
     onScanSuccess,
     () => {}
   ).catch(() => {
-    showBanner('Camera unavailable. Use manual entry below.', true);
+    showError('Camera unavailable. Use manual entry below.');
   });
 }
 
 async function onScanSuccess(decodedText) {
   const upc = decodedText.replace(/[^0-9]/g, '');
-  if (upc.length < 12 || upc === lastUpc) return;
+  if (upc.length < 8 || upc === lastUpc) return;
   lastUpc = upc;
   await lookupUpc(upc);
 }
@@ -478,12 +583,12 @@ async function onScanSuccess(decodedText) {
 async function lookupUpc(upc) {
   if (html5QrCode) { try { html5QrCode.pause(); } catch (e) {} }
   $('result').classList.remove('show');
-  $('prodError').textContent = '';
+  $('errorOverlay').classList.remove('show');
   $('btnAdd').disabled = true;
   try {
     const res = await fetch('/api/lookup?upc=' + encodeURIComponent(upc));
     const data = await res.json();
-    if (!res.ok) { $('prodError').textContent = data.error; $('result').classList.add('show'); return; }
+    if (!res.ok) { showError(data.error); return; }
     lastProduct = data;
     const p = data.product;
     $('editName').value = p && p.name ? p.name : '';
@@ -491,25 +596,28 @@ async function lookupUpc(upc) {
     $('editName').placeholder = p ? 'Product name' : 'Product name (required)';
     $('prodQty').textContent = data.inventory_qty > 0 ? 'In stock: ' + data.inventory_qty : '';
     $('btnAdd').disabled = !$('editName').value.trim();
-    if (data.warning) showBanner(data.warning, false);
+    if (data.warning) showError(data.warning);
     $('result').classList.add('show');
     if (!p || !p.name) $('editName').focus();
   } catch (e) {
-    $('prodError').textContent = 'Network error. Check connection.';
-    $('result').classList.add('show');
+    showError('Network error. Check connection.');
   }
 }
 
 async function doAction(action) {
   if (!lastProduct) return;
   const name = $('editName').value.trim();
-  if (action === 'add' && !name) { $('prodError').textContent = 'Enter a product name first.'; return; }
+  if (action === 'add' && !name) { showError('Enter a product name first.'); return; }
   const brand = $('editBrand').value.trim();
   try {
     const data = await apiAction(lastProduct.upc, action, name, brand);
     if (data.success) {
       lastProduct.inventory_qty = data.new_qty;
       $('prodQty').textContent = data.new_qty > 0 ? 'In stock: ' + data.new_qty : '';
+      const f = $('flash');
+      f.textContent = action === 'add' ? 'Added!' : 'Taken!';
+      f.className = 'show ' + action;
+      setTimeout(() => { f.className = ''; }, 1000);
     }
   } catch (e) {}
   $('manualUpc').value = '';
@@ -534,7 +642,7 @@ $('editName').addEventListener('input', () => {
 
 
 const urlUpc = new URLSearchParams(window.location.search).get('upc');
-if (urlUpc && urlUpc.length >= 12) {
+if (urlUpc && urlUpc.length >= 8) {
   $('manualUpc').value = urlUpc;
   lookupUpc(urlUpc);
 } else {
