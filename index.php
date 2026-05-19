@@ -349,7 +349,7 @@ $navItems = [
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#000;color:#fff;height:100dvh;display:flex;flex-direction:column;padding:48px 0 56px;overflow:hidden}
 #navBar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;padding:0 12px;background:#1a1a1a;border-bottom:1px solid #333;z-index:110}
-#menuBtn{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:4px 8px;margin-right:10px;line-height:1}
+#menuBtn{background:none;border:none;color:#fff;font-size:26px;cursor:pointer;padding:4px 8px;margin-right:10px;line-height:1}
 #pageTitle{font-size:17px;font-weight:600}
 #sideMenu{position:fixed;top:0;left:0;width:260px;height:100dvh;background:#1a1a1a;z-index:200;transform:translateX(-100%);transition:transform .25s;padding:56px 0 0 0}
 #sideMenu.open{transform:translateX(0)}
@@ -474,6 +474,12 @@ const page = '<?= $page ?>';
 
 // --- Menu ---
 function toggleMenu(open) {
+  if (open) {
+    $('errorOverlay').classList.remove('show');
+    $('result').classList.remove('show');
+    $('suggestions').classList.remove('show');
+    lastUpc = null;
+  }
   $('sideMenu').classList.toggle('open', open);
   $('overlay').classList.toggle('show', open);
 }
