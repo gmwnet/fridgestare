@@ -35,6 +35,7 @@ function loadUser() {
   } else {
     $('userBadge').textContent = '';
     $('logoutIcon').style.display = 'none';
+    if (html5QrCode) { try { html5QrCode.stop(); } catch (e) {} }
     $('pinOverlay').style.display = 'flex';
     $('pinInput').focus();
     turnstileToken = null; if (window.turnstile) turnstile.reset();
@@ -181,6 +182,7 @@ function startScanner() {
   ).catch(function() {
     showError('Camera unavailable. Use manual entry below.');
   });
+  if ($('btnPause')) $('btnPause').textContent = '⏸';
 }
 
 async function onScanSuccess(decodedText) {
@@ -288,5 +290,17 @@ document.addEventListener('visibilitychange', function() {
 });
 
 startScanner();
+
+$('btnPause').addEventListener('click', function() {
+  if (scanning) {
+    if (html5QrCode) { try { html5QrCode.stop(); } catch (e) {} }
+    scanning = false;
+    this.textContent = '▶';
+  } else {
+    scanning = true;
+    startScanner();
+    this.textContent = '⏸';
+  }
+});
 
 }

@@ -477,7 +477,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #pinBox .pinBtns{display:flex;gap:10px;margin-top:16px}
 #pinBox .pinBtns button{flex:1;padding:12px;font-size:16px;font-weight:600;border:none;border-radius:8px;cursor:pointer}
 #pinError{color:#ff3b30;font-size:14px;margin-top:10px;display:none}
-#userBadge{font-size:14px;color:#ccc;margin-left:auto;padding:4px 10px;cursor:pointer;white-space:nowrap}
+#userBadge{font-size:14px;color:#ccc;padding:4px 10px;cursor:pointer;white-space:nowrap}
 #invPage{flex:1;overflow-y:auto;padding:12px 16px 8px}
 #invPage h2{font-size:18px;margin-bottom:12px}
 .invp-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #333}
@@ -503,13 +503,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="navBar">
   <button id="menuBtn">&#9776;</button>
   <span id="pageTitle"><?= $page === 'inventory' ? 'Inventory' : ($page === 'ledger' ? 'Ledger' : 'GroScan') ?></span>
-  <span id="userBadge"></span>  <span id="logoutIcon" style="display:none;cursor:pointer;padding:4px 6px 4px 0;color:#ccc;vertical-align:middle">
+  <span style="display:flex;align-items:center;margin-left:auto"><span id="userBadge"></span><span id="logoutIcon" style="cursor:pointer;padding:4px 6px 4px 0;color:#ccc;display:none">
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
       <polyline points="16 17 21 12 16 7"/>
       <line x1="21" y1="12" x2="9" y2="12"/>
     </svg>
-  </span>
+  </span></span>
 </div>
 
 <div id="sideMenu">
@@ -550,6 +550,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="scanner">
   <div id="reader"></div>
+  <button id="btnPause" style="position:absolute;top:8px;right:8px;z-index:50;background:rgba(0,0,0,.6);border:none;border-radius:50%;color:#fff;font-size:20px;width:40px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center">⏸</button>
   <div id="result">
     <div style="position:relative">
       <input type="text" id="editName" class="edit-field" placeholder="Product name (required)" autocomplete="off">
