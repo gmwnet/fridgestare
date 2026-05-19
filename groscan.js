@@ -14,8 +14,8 @@ var suggestTimer = null;
 function toggleMenu(open) {
   if (open) {
     $('errorOverlay').classList.remove('show');
-    $('result').classList.remove('show');
-    $('suggestions').classList.remove('show');
+    var el = $('result'); if (el) el.classList.remove('show');
+    el = $('suggestions'); if (el) el.classList.remove('show');
     lastUpc = null;
   }
   $('sideMenu').classList.toggle('open', open);
@@ -37,7 +37,7 @@ function loadUser() {
     $('userBadge').textContent = '';
     $('logoutIcon').style.display = 'none';
     if (html5QrCode) { try { html5QrCode.stop(); } catch (e) {} }
-    $('reader').style.opacity = '0';
+    var r = $('reader'); if (r) r.style.opacity = '0';
     scanning = false;
     $('pinOverlay').style.display = 'flex';
     $('pinInput').focus();
@@ -132,7 +132,7 @@ function startScanner() {
   html5QrCode = new Html5Qrcode('reader');
   html5QrCode.start(
     { facingMode: 'environment' },
-    { fps: 10, qrbox: { width: 220, height: 220 } },
+    { fps: 10, qrbox: { width: 280, height: 150 } },
     onScanSuccess,
     function() {}
   ).catch(function() {
