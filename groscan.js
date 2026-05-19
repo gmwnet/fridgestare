@@ -124,56 +124,7 @@ $('clearUpc').addEventListener('click', function() {
   $('clearUpc').style.display = 'none';
 });
 
-// --- Page-specific code ---
-if (page === 'inventory') {
-
-async function loadInvPage() {
-  try {
-    var res = await fetch('/api/inventory');
-    var data = await res.json();
-    $('invpList').innerHTML = data.items.map(function(item) {
-      return '<div class="invp-item">' +
-        '<span class="invp-name">' + esc(item.name) + '</span>' +
-        '<span class="invp-qty">' + item.qty + '</span>' +
-        '<button class="invp-btn invp-take" data-upc="' + item.upc + '" data-action="take">\u2212</button>' +
-        '<button class="invp-btn invp-add" data-upc="' + item.upc + '" data-action="add">+</button>' +
-      '</div>';
-    }).join('');
-    document.querySelectorAll('#invpList .invp-btn').forEach(function(btn) {
-      btn.addEventListener('click', async function() {
-        $('manualUpc').value = '';
-        var upc = btn.dataset.upc;
-        var action = btn.dataset.action;
-        var data2 = await apiAction(upc, action);
-        if (data2.success) loadInvPage();
-      });
-    });
-  } catch (e) {}
-}
-
-loadInvPage();
-
-} else if (page === 'ledger') {
-
-async function loadLedger() {
-  try {
-    var res = await fetch('/api/ledger');
-    var data = await res.json();
-    $('lgList').innerHTML = data.entries.map(function(e) {
-      return '<div class="lg-entry">' +
-        '<span class="lg-name">' + esc(e.name || 'Unknown') + (e.user ? ' <span style="color:#007aff;font-size:12px">(' + esc(e.user) + ')</span>' : '') + '</span>' +
-        '<span class="lg-action lg-' + e.action + '">' + e.action.toUpperCase() + '</span>' +
-        '<span class="lg-time">' + e.created_at + '</span>' +
-      '</div>';
-    }).join('');
-  } catch (e) {}
-}
-
-loadLedger();
-
-} else {
-
-// --- Scanner ---
+// --- Scanner functions (defined globally, used on scan page) ---
 function startScanner() {
   if (html5QrCode) { try { html5QrCode.stop(); } catch (e) {} }
   html5QrCode = new Html5Qrcode('reader');
@@ -241,6 +192,56 @@ async function doAction(action) {
   if (scanning) setTimeout(function() { startScanner(); }, 300);
 }
 
+// --- Page-specific code ---
+if (page === 'inventory') {
+
+async function loadInvPage() {
+  try {
+    var res = await fetch('/api/inventory');
+    var data = await res.json();
+    $('invpList').innerHTML = data.items.map(function(item) {
+      return '<div class="invp-item">' +
+        '<span class="invp-name">' + esc(item.name) + '</span>' +
+        '<span class="invp-qty">' + item.qty + '</span>' +
+        '<button class="invp-btn invp-take" data-upc="' + item.upc + '" data-action="take">\u2212</button>' +
+        '<button class="invp-btn invp-add" data-upc="' + item.upc + '" data-action="add">+</button>' +
+      '</div>';
+    }).join('');
+    document.querySelectorAll('#invpList .invp-btn').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        $('manualUpc').value = '';
+        var upc = btn.dataset.upc;
+        var action = btn.dataset.action;
+        var data2 = await apiAction(upc, action);
+        if (data2.success) loadInvPage();
+      });
+    });
+  } catch (e) {}
+}
+
+loadInvPage();
+
+} else if (page === 'ledger') {
+
+async function loadLedger() {
+  try {
+    var res = await fetch('/api/ledger');
+    var data = await res.json();
+    $('lgList').innerHTML = data.entries.map(function(e) {
+      return '<div class="lg-entry">' +
+        '<span class="lg-name">' + esc(e.name || 'Unknown') + (e.user ? ' <span style="color:#007aff;font-size:12px">(' + esc(e.user) + ')</span>' : '') + '</span>' +
+        '<span class="lg-action lg-' + e.action + '">' + e.action.toUpperCase() + '</span>' +
+        '<span class="lg-time">' + e.created_at + '</span>' +
+      '</div>';
+    }).join('');
+  } catch (e) {}
+}
+
+loadLedger();
+
+} else {
+
+// --- Scanner page initializations ---
 $('btnAdd').addEventListener('click', function() { doAction('add'); });
 $('btnTake').addEventListener('click', function() { doAction('take'); });
 
@@ -292,8 +293,6 @@ document.addEventListener('visibilitychange', function() {
   if (document.hidden) { scanning = false; } else { scanning = true; startScanner(); }
 });
 
-startScanner();
-
 $('btnPause').addEventListener('click', function() {
   if (scanning) {
     if (html5QrCode) { try { html5QrCode.stop(); } catch (e) {} }
@@ -305,5 +304,8 @@ $('btnPause').addEventListener('click', function() {
     this.textContent = '⏸';
   }
 });
+
+// Start scanner on page load or after login
+if (currentUser) startScanner();
 
 }
