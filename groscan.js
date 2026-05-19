@@ -37,6 +37,7 @@ function loadUser() {
     $('userBadge').textContent = '';
     $('logoutIcon').style.display = 'none';
     if (html5QrCode) { try { html5QrCode.stop(); } catch (e) {} }
+    $('reader').style.opacity = '0';
     scanning = false;
     $('pinOverlay').style.display = 'flex';
     $('pinInput').focus();
@@ -127,13 +128,15 @@ $('clearUpc').addEventListener('click', function() {
 // --- Scanner functions (defined globally, used on scan page) ---
 function startScanner() {
   if (html5QrCode) { try { html5QrCode.stop(); } catch (e) {} }
+  $('reader').style.opacity = '1';
   html5QrCode = new Html5Qrcode('reader');
   html5QrCode.start(
     { facingMode: 'environment' },
-    { fps: 10, qrbox: { width: 250, height: 150 } },
+    { fps: 10, qrbox: { width: 220, height: 220 } },
     onScanSuccess,
     function() {}
   ).catch(function() {
+    $('reader').style.opacity = '0';
     showError('Camera unavailable. Use manual entry below.');
   });
   if ($('btnPause')) $('btnPause').textContent = '⏸';
@@ -293,13 +296,15 @@ document.addEventListener('visibilitychange', function() {
   if (document.hidden) { scanning = false; } else { scanning = true; startScanner(); }
 });
 
-$('btnPause').addEventListener('click', function() {
+$('btnPause').addEventListener('click', async function() {
   if (scanning) {
-    if (html5QrCode) { try { html5QrCode.stop(); } catch (e) {} }
+    if (html5QrCode) { try { await html5QrCode.stop(); } catch (e) {} }
     scanning = false;
     this.textContent = '▶';
+    $('reader').style.opacity = '0';
   } else {
     scanning = true;
+    $('reader').style.opacity = '1';
     startScanner();
     this.textContent = '⏸';
   }

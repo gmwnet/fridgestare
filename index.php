@@ -443,6 +443,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #flash.add{background:#34c759;color:#fff}
 #flash.take{background:#ff9500;color:#fff}
 #scanner{flex:1;position:relative;background:#111;overflow:hidden}
+#reader{width:100%;height:100%}
 #reader video{width:100%;height:100%;object-fit:cover}
 #result{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);padding:12px 16px;transform:translateY(100%);transition:transform .3s}
 #result.show{transform:translateY(0)}
