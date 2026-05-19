@@ -30,9 +30,11 @@ function loadUser() {
   try { var u = JSON.parse(localStorage.getItem('groscan_user')); if (u && u.id && u.name && u.expires_at && Date.now() < u.expires_at) currentUser = u; else { localStorage.removeItem('groscan_user'); } } catch (e) {}
   if (currentUser) {
     $('userBadge').textContent = currentUser.name;
+    $('logoutIcon').style.display = 'inline';
     $('pinOverlay').style.display = 'none';
   } else {
     $('userBadge').textContent = '';
+    $('logoutIcon').style.display = 'none';
     $('pinOverlay').style.display = 'flex';
     $('pinInput').focus();
     turnstileToken = null; if (window.turnstile) turnstile.reset();
@@ -49,6 +51,7 @@ async function doAuth(pin) {
     currentUser.expires_at = Date.now() + 30 * 24 * 60 * 60 * 1000;
     localStorage.setItem('groscan_user', JSON.stringify(currentUser));
     $('userBadge').textContent = currentUser.name;
+    $('logoutIcon').style.display = 'inline';
     $('pinOverlay').style.display = 'none';
     turnstileToken = null;
   } catch (e) { $('pinError').textContent = 'Network error'; $('pinError').style.display = 'block'; }
@@ -56,6 +59,11 @@ async function doAuth(pin) {
 $('pinSubmit').addEventListener('click', function() { doAuth($('pinInput').value.trim()); });
 $('pinInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') $('pinSubmit').click(); });
 $('userBadge').addEventListener('click', function() {
+  localStorage.removeItem('groscan_user');
+  currentUser = null;
+  loadUser();
+});
+$('logoutIcon').addEventListener('click', function() {
   localStorage.removeItem('groscan_user');
   currentUser = null;
   loadUser();

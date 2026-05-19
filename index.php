@@ -503,7 +503,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="navBar">
   <button id="menuBtn">&#9776;</button>
   <span id="pageTitle"><?= $page === 'inventory' ? 'Inventory' : ($page === 'ledger' ? 'Ledger' : 'GroScan') ?></span>
-  <span id="userBadge"></span>
+  <span id="userBadge"></span><span id="logoutIcon" style="display:none;font-size:14px;cursor:pointer;padding:4px 6px 4px 0;color:#ccc">&#x2B06;</span>
 </div>
 
 <div id="sideMenu">
