@@ -383,7 +383,7 @@ if ($uri === '/api/auth' && $method === 'POST') {
         curl_close($ch);
         if (!($v['success'] ?? false)) jsonResponse(['error' => 'Captcha failed. Try again.'], 403);
     }
-    $stmt = $db->prepare("SELECT id, name FROM users");
+    $stmt = $db->prepare("SELECT id, name, pin_hash FROM users");
     $stmt->execute();
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $match = null;
