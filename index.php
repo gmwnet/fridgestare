@@ -371,6 +371,16 @@ if ($uri === '/api/auth' && $method === 'POST') {
     if (!preg_match('/^\d{4,8}$/', $pin)) {
         jsonResponse(['error' => 'PIN must be 4\u20138 digits'], 400);
     }
+    $turnstileSecret = $cfg['turnstile_secret_key'] ?? '';
+    if ($turnstileSecret) {
+        $token = $input['turnstile_token'] ?? '';
+        if (!$token) jsonResponse(['error' => 'Captcha required'], 400);
+        $ch = curl_init('https://challenges.cloudflare.com/turnstile/v0/siteverify');
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => http_build_query(['secret' => $turnstileSecret, 'response' => $token])]);
+        $v = json_decode(@curl_exec($ch), true);
+        curl_close($ch);
+        if (!($v['success'] ?? false)) jsonResponse(['error' => 'Captcha failed. Try again.'], 403);
+    }
     $stmt = $db->prepare("SELECT id, name FROM users");
     $stmt->execute();
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -413,6 +423,7 @@ $navItems = [
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>GroScan</title>
 <script src="html5-qrcode.min.js"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#000;color:#fff;height:100dvh;display:flex;flex-direction:column;padding:48px 0 56px;overflow:hidden}
@@ -508,6 +519,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <h2>Who's this?</h2>
   <p>Enter your PIN</p>
   <input type="tel" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
+  <?php if (!empty($cfg['turnstile_site_key'])): ?><div id="turnstileWidget" class="cf-turnstile" data-sitekey="<?= $cfg['turnstile_site_key'] ?>" data-callback="onTurnstileSuccess" style="margin:12px 0"></div><?php endif; ?>
   <div class="pinBtns"><button id="pinSubmit" style="background:#007aff;color:#fff">Enter</button></div>
   <div id="pinError">PIN not recognized</div>
 </div></div>
@@ -558,6 +570,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <script>
 const $ = id => document.getElementById(id);
 const page = '<?= $page ?>';
+const turnstileKey = '<?= !empty($cfg['turnstile_site_key']) ? $cfg['turnstile_site_key'] : '' ?>';
+let turnstileToken = null;
 
 // --- Menu ---
 function toggleMenu(open) {
@@ -595,18 +609,22 @@ function loadUser() {
     $('userBadge').textContent = '';
     $('pinOverlay').style.display = 'flex';
     $('pinInput').focus();
+    turnstileToken = null; if (window.turnstile) turnstile.reset();
   }
 }
+function onTurnstileSuccess(token) { turnstileToken = token; }
 async function doAuth(pin) {
+  if (turnstileKey && !turnstileToken) { $('pinError').textContent = 'Please complete the captcha.'; $('pinError').style.display = 'block'; return; }
   try {
-    const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin }) });
+    const res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin, turnstile_token: turnstileToken }) });
     const data = await res.json();
-    if (!res.ok) { $('pinError').textContent = data.error || 'Not recognized'; $('pinError').style.display = 'block'; return; }
+    if (!res.ok) { turnstileToken = null; if (window.turnstile) turnstile.reset(); $('pinError').textContent = data.error || 'Not recognized'; $('pinError').style.display = 'block'; return; }
     currentUser = data.user;
     currentUser.expires_at = Date.now() + 30 * 24 * 60 * 60 * 1000;
     localStorage.setItem('groscan_user', JSON.stringify(currentUser));
     $('userBadge').textContent = currentUser.name;
     $('pinOverlay').style.display = 'none';
+    turnstileToken = null;
   } catch (e) { $('pinError').textContent = 'Network error'; $('pinError').style.display = 'block'; }
 }
 $('pinSubmit').addEventListener('click', () => { doAuth($('pinInput').value.trim()); });
