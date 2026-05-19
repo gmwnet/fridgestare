@@ -477,7 +477,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #pinBox .pinBtns{display:flex;gap:10px;margin-top:16px}
 #pinBox .pinBtns button{flex:1;padding:12px;font-size:16px;font-weight:600;border:none;border-radius:8px;cursor:pointer}
 #pinError{color:#ff3b30;font-size:14px;margin-top:10px;display:none}
-#userBadge{font-size:14px;color:#007aff;margin-left:auto;padding:4px 10px;cursor:pointer;white-space:nowrap}
+#userBadge{font-size:14px;color:#ccc;margin-left:auto;padding:4px 10px;cursor:pointer;white-space:nowrap}
 #invPage{flex:1;overflow-y:auto;padding:12px 16px 8px}
 #invPage h2{font-size:18px;margin-bottom:12px}
 .invp-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #333}
@@ -522,7 +522,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <p>Enter your PIN</p>
   <input type="tel" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
   <?php if (!empty($cfg['turnstile_site_key'])): ?><div id="turnstileWidget" class="cf-turnstile" data-sitekey="<?= $cfg['turnstile_site_key'] ?>" data-callback="onTurnstileSuccess" style="margin:12px 0"></div><?php endif; ?>
-  <div class="pinBtns"><button id="pinSubmit" style="background:#007aff;color:#fff">Enter</button></div>
+  <div class="pinBtns"><button id="pinSubmit" style="background:#007aff;color:#fff">Log On</button></div>
   <div id="pinError">PIN not recognized</div>
 </div></div>
 
