@@ -428,7 +428,7 @@ $navItems = [
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#000;color:#fff;height:100dvh;display:flex;flex-direction:column;padding:48px 0 56px;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#000;color:#fff;height:100dvh;display:flex;flex-direction:column;padding:48px 0 46px;overflow:hidden}
 #navBar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;padding:0 12px;background:#1a1a1a;border-bottom:1px solid #333;z-index:110}
 #menuBtn{background:none;border:none;color:#fff;font-size:26px;cursor:pointer;padding:4px 8px;margin-right:10px;line-height:1}
 #pageTitle{font-size:17px;font-weight:600}
@@ -445,7 +445,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #scanner{flex:1;position:relative;background:#111;overflow:hidden}
 #reader{width:100%;height:100%}
 #reader video{width:100%;height:100%;object-fit:cover}
-#result{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);padding:12px 16px;transform:translateY(100%);transition:transform .3s}
+#result{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);padding:10px 12px;transform:translateY(100%);transition:transform .3s}
 #result.show{transform:translateY(0)}
 .edit-field{width:100%;padding:14px 16px;font-size:20px;background:#222;border:1px solid #555;border-radius:8px;color:#fff;margin-bottom:6px;outline:none}
 .edit-field:focus{border-color:#007aff}
@@ -460,10 +460,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .actions button{flex:1;padding:16px;font-size:18px;font-weight:600;border:none;border-radius:12px;cursor:pointer;touch-action:manipulation}
 #btnAdd{background:#34c759;color:#fff}
 #btnTake{background:#ff9500;color:#fff}
-#manual{position:fixed;bottom:0;left:0;right:0;display:flex;gap:8px;padding:8px 12px;background:#1a1a1a;z-index:60}
-#manual input{flex:1;padding:14px 44px 14px 16px;font-size:20px;border:1px solid #555;border-radius:8px;background:#222;color:#fff}
-#manual button{padding:14px 24px;font-size:20px;border:none;border-radius:8px;background:#007aff;color:#fff;cursor:pointer}
-#clearUpc{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:#666;font-size:24px;cursor:pointer;line-height:1;padding:4px 8px;display:none;z-index:5}
+#manual{position:fixed;bottom:0;left:0;right:0;display:flex;gap:6px;padding:6px 8px;background:#1a1a1a;z-index:60}
+#manual input{flex:1;padding:10px 36px 10px 12px;font-size:16px;border:1px solid #555;border-radius:8px;background:#222;color:#fff}
+#manual button{padding:10px 16px;font-size:16px;border:none;border-radius:8px;background:#007aff;color:#fff;cursor:pointer}
+#clearUpc{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:#666;font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;display:none;z-index:5}
 #manualInputWrap{position:relative;flex:1;display:flex}
 #banner{position:fixed;top:48px;left:0;right:0;background:#ff9500;color:#000;padding:8px 16px;font-size:13px;text-align:center;z-index:100;display:none}
 #errorOverlay{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:32px 48px;border-radius:16px;font-size:20px;font-weight:600;z-index:300;display:none;text-align:center;background:#ff3b30;color:#fff;min-width:200px;max-width:80vw;line-height:1.4}
