@@ -360,6 +360,22 @@ if ($uri === '/api/search' && $method === 'GET') {
     jsonResponse(['results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
+// --- API: Health Check ---
+if ($uri === '/api/health' && $method === 'GET') {
+    $hasZbar = false;
+    if (function_exists('shell_exec')) {
+        $zbarPath = trim(@shell_exec('which zbarimg 2>/dev/null') ?: '');
+        $hasZbar = $zbarPath && file_exists($zbarPath);
+    }
+    jsonResponse([
+        'ok' => true,
+        'version' => '0.1',
+        'php' => PHP_VERSION,
+        'sqlite' => $db->getAttribute(PDO::ATTR_SERVER_VERSION),
+        'zbarimg' => $hasZbar,
+    ]);
+}
+
 // --- API: Scan Photo (safety-net fallback) ---
 if ($uri === '/api/scan-photo' && $method === 'POST') {
     if (empty($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {

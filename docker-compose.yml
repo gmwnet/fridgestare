@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  groventry:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      - ./groscan.db:/var/www/html/groscan.db
+    restart: unless-stopped
