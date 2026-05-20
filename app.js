@@ -32,14 +32,7 @@ document.addEventListener('visibilitychange', function() {
   if (!zbarReady) initZbar();
 });
 window.addEventListener('pageshow', function(e) {
-  if (!e.persisted) return;
-  if (page !== 'scan') return;
-  if (processingPhoto) {
-    photoSeq++;
-    var po = $('photoOverlay'); if (po) po.classList.remove('show');
-    resetPhotoState();
-  }
-  if (!zbarReady) initZbar();
+  if (e.persisted) { location.reload(); }
 });
 
 function scanLog(msg) {
