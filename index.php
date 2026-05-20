@@ -406,6 +406,7 @@ if ($uri === '/api/scan-photo' && $method === 'POST') {
         jsonResponse(['success' => true, 'upc' => $upc, 'method' => $method]);
     } else {
         jsonResponse(['success' => false, 'error' => 'No barcode found in photo. Try manual entry.']);
+    }
 }
 
 // --- API: Tag ---
