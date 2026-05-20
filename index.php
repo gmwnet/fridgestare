@@ -134,6 +134,7 @@ $db->exec("
 ");
 try { $db->exec("ALTER TABLE ledger ADD COLUMN user_id INTEGER"); } catch (PDOException $e) {}
 try { $db->exec("ALTER TABLE ledger ADD COLUMN details TEXT"); } catch (PDOException $e) {}
+try { $db->exec("ALTER TABLE ledger ADD COLUMN user_name TEXT"); } catch (PDOException $e) {}
 try { $db->exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, pin_hash TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"); } catch (PDOException $e) {}
 try { $db->exec("CREATE TABLE IF NOT EXISTS rate_limits (ip TEXT PRIMARY KEY, attempts INTEGER DEFAULT 0, locked_until DATETIME)"); } catch (PDOException $e) {}
 try { $db->exec("ALTER TABLE products ADD COLUMN tags TEXT"); } catch (PDOException $e) {}
@@ -178,7 +179,13 @@ function formatTimestamp($utcString, $cfg) {
 }
 
 function logAdminAction($db, $action, $details, $userId) {
-    dbExecWithRetry($db, "INSERT INTO ledger (upc, action, user_id, details) VALUES ('', ?, ?, ?)", [$action, $userId, $details]);
+    $userName = null;
+    if ($userId) {
+        $stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $userName = $stmt->fetchColumn();
+    }
+    dbExecWithRetry($db, "INSERT INTO ledger (upc, action, user_id, user_name, details) VALUES ('', ?, ?, ?, ?)", [$action, $userId, $userName, $details]);
 }
 
 function jsonResponse($data, $code = 200) {
@@ -319,7 +326,13 @@ if ($uri === '/api/action' && $method === 'POST') {
             dbExecWithRetry($db, "INSERT INTO products (upc, name, brand) VALUES (?, ?, ?)", [$upc, $name, $brand]);
         }
     }
-    dbExecWithRetry($db, "INSERT INTO ledger (upc, action, user_id) VALUES (?, ?, ?)", [$upc, $action, $userId]);
+    $userName = null;
+    if ($userId) {
+        $stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $userName = $stmt->fetchColumn();
+    }
+    dbExecWithRetry($db, "INSERT INTO ledger (upc, action, user_id, user_name) VALUES (?, ?, ?, ?)", [$upc, $action, $userId, $userName]);
     if ($action === 'add') {
         dbExecWithRetry($db,
             "INSERT INTO inventory (upc, quantity, updated_at)
@@ -362,10 +375,9 @@ if ($uri === '/api/inventory' && $method === 'GET') {
 // --- API: Ledger ---
 if ($uri === '/api/ledger' && $method === 'GET') {
     $stmt = $db->query(
-        "SELECT l.id, l.upc, COALESCE(p.name, l.details, 'Unknown') AS name, l.action, l.created_at, l.details, u.name AS user
+        "SELECT l.id, l.upc, COALESCE(p.name, l.details, 'Unknown') AS name, l.action, l.created_at, l.details, l.user_name AS user
          FROM ledger l
          LEFT JOIN products p ON l.upc = p.upc
-         LEFT JOIN users u ON l.user_id = u.id
          ORDER BY l.id DESC
          LIMIT 200"
     );
@@ -987,17 +999,17 @@ foreach ($qtys as $v) {
 <div id="usersPage">
   <h2>Users</h2>
   <div id="usersList"></div>
-  <div id="usersForm" style="margin-top:20px;padding-top:16px;border-top:1px solid #333">
-    <h3 style="font-size:16px;margin-bottom:12px">Add User</h3>
-    <input type="text" id="newUserName" class="edit-field" placeholder="Name" style="margin-bottom:8px">
-    <input type="tel" id="newUserPin" class="edit-field" placeholder="PIN (4-8 digits)" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:12px">
-    <button id="btnAddUser" style="padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer">Add User</button>
-  </div>
   <div id="changePinForm" style="margin-top:20px;padding-top:16px;border-top:1px solid #333">
     <h3 style="font-size:16px;margin-bottom:12px">Change My PIN</h3>
     <input type="tel" id="selfNewPin" class="edit-field" placeholder="New PIN (4-8 digits)" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:8px">
     <input type="tel" id="selfConfirmPin" class="edit-field" placeholder="Confirm new PIN" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:12px">
     <button id="btnChangeMyPin" style="padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;cursor:pointer">Change PIN</button>
+  </div>
+  <div id="usersForm" style="margin-top:20px;padding-top:16px;border-top:1px solid #333">
+    <h3 style="font-size:16px;margin-bottom:12px">Add User</h3>
+    <input type="text" id="newUserName" class="edit-field" placeholder="Name" style="margin-bottom:8px">
+    <input type="tel" id="newUserPin" class="edit-field" placeholder="PIN (4-8 digits)" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:12px">
+    <button id="btnAddUser" style="padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer">Add User</button>
   </div>
 </div>
 
