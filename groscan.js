@@ -588,6 +588,17 @@ loadLedger();
 
 } else if (page === 'settings') {
 
+var timezones = [
+  'UTC','America/New_York','America/Chicago','America/Denver',
+  'America/Los_Angeles','America/Phoenix','America/Anchorage',
+  'America/Toronto','America/Mexico_City','America/Sao_Paulo',
+  'Europe/London','Europe/Paris','Europe/Berlin','Europe/Madrid',
+  'Europe/Rome','Europe/Amsterdam','Europe/Moscow',
+  'Asia/Tokyo','Asia/Shanghai','Asia/Hong_Kong','Asia/Singapore',
+  'Asia/Seoul','Asia/Dubai','Asia/Kolkata','Asia/Bangkok',
+  'Australia/Sydney','Australia/Melbourne','Pacific/Auckland'
+];
+
 async function loadSettings() {
   try {
     var res = await fetch('/api/config');
@@ -595,39 +606,90 @@ async function loadSettings() {
     var form = $('settingsForm');
     while (form.firstChild) form.removeChild(form.firstChild);
 
-    var rows = [
-      {k:'timezone',l:'Timezone',t:'text'},
-      {k:'session_timeout_days',l:'Session Timeout (days)',t:'number'},
-      {k:'pin_max_attempts',l:'PIN Max Attempts',t:'number'},
-      {k:'pin_lockout_hours',l:'PIN Lockout (hours)',t:'number'},
-      {k:'default_qty',l:'Default Quantity',t:'number'},
-      {k:'debug',l:'Debug Mode',t:'checkbox'}
-    ];
-    rows.forEach(function(r) {
-      var val = data[r.k];
+    function addRow(label, el) {
       var row = dom('div', {'class':'set-row'});
-      row.appendChild(dom('span', {'class':'set-label'}, r.l));
+      row.appendChild(dom('span', {'class':'set-label'}, label));
       var wrap = dom('span', {'class':'set-val'});
-      if (r.t === 'checkbox') {
-        var cb = dom('input', {'type':'checkbox','id':'cfg_'+r.k});
-        cb.checked = !!val;
-        wrap.appendChild(cb);
-      } else {
-        wrap.appendChild(dom('input', {'type':'text','id':'cfg_'+r.k,'value':val !== undefined ? String(val) : ''}));
-      }
-      row.appendChild(wrap);
+      wrap.appendChild(el);
       form.appendChild(row);
+    }
+
+    // Timezone
+    var tzSel = dom('select', {'id':'cfg_timezone'});
+    timezones.forEach(function(z) {
+      var opt = dom('option', {'value':z}, z);
+      if (z === (data.timezone||'UTC')) opt.selected = true;
+      tzSel.appendChild(opt);
     });
+    addRow('Timezone', tzSel);
+
+    // Session timeout
+    var sessSel = dom('select', {'id':'cfg_session_timeout_days'});
+    [7,14,30,60,90,365].forEach(function(v) {
+      var opt = dom('option', {'value':String(v)}, v + ' days');
+      if (v === (data.session_timeout_days||30)) opt.selected = true;
+      sessSel.appendChild(opt);
+    });
+    addRow('Session Timeout', sessSel);
+
+    // PIN max attempts
+    var attSel = dom('select', {'id':'cfg_pin_max_attempts'});
+    [1,2,3,5,10].forEach(function(v) {
+      var opt = dom('option', {'value':String(v)}, String(v));
+      if (v === (data.pin_max_attempts||3)) opt.selected = true;
+      attSel.appendChild(opt);
+    });
+    addRow('PIN Max Attempts', attSel);
+
+    // PIN lockout hours
+    var lockSel = dom('select', {'id':'cfg_pin_lockout_hours'});
+    [1,2,4,8,12,24].forEach(function(v) {
+      var opt = dom('option', {'value':String(v)}, v + ' hour' + (v>1?'s':''));
+      if (v === (data.pin_lockout_hours||1)) opt.selected = true;
+      lockSel.appendChild(opt);
+    });
+    addRow('PIN Lockout Duration', lockSel);
+
+    // Default quantity
+    var qtySel = dom('select', {'id':'cfg_default_qty'});
+    [1,2,3,5,10].forEach(function(v) {
+      var opt = dom('option', {'value':String(v)}, String(v));
+      if (v === (data.default_qty||1)) opt.selected = true;
+      qtySel.appendChild(opt);
+    });
+    addRow('Default Quantity', qtySel);
+
+    // Debug mode
+    var dbgCb = dom('input', {'type':'checkbox','id':'cfg_debug'});
+    dbgCb.checked = !!data.debug;
+    addRow('Debug Mode', dbgCb);
+
+    // Danger Zone
+    form.appendChild(dom('h3', {'style':'color:#ff3b30;font-size:16px;margin:20px 0 8px;border-top:1px solid #333;padding-top:12px'}, '⚠ Danger Zone'));
+    form.appendChild(dom('p', {'style':'color:#888;font-size:13px;margin-bottom:12px'}, 'These settings affect external services and security.'));
+
+    var siteKey = dom('input', {'type':'text','id':'cfg_turnstile_site_key','value':data.turnstile_site_key||'','placeholder':'Cloudflare Turnstile Site Key'});
+    addRow('Turnstile Site Key', siteKey);
+
+    var secKey = dom('input', {'type':'text','id':'cfg_turnstile_secret_key','value':data.turnstile_secret_key||'','placeholder':'Cloudflare Turnstile Secret Key'});
+    addRow('Turnstile Secret Key', secKey);
+
+    var upcKey = dom('input', {'type':'text','id':'cfg_upcitemdb_key','value':data.upcitemdb_key||'','placeholder':'UPCItemDB API Key (optional)'});
+    addRow('UPCItemDB Key', upcKey);
+
     var save = dom('button', {'id':'btnSaveSettings'}, 'Save Settings');
     save.addEventListener('click', async function() {
-      var payload = {};
-      rows.forEach(function(r) {
-        if (r.t === 'checkbox') payload[r.k] = $('cfg_' + r.k).checked;
-        else {
-          var v = $('cfg_' + r.k).value.trim();
-          payload[r.k] = r.t === 'number' ? (parseInt(v, 10) || 0) : v;
-        }
-      });
+      var payload = {
+        timezone: $('cfg_timezone').value,
+        session_timeout_days: parseInt($('cfg_session_timeout_days').value, 10),
+        pin_max_attempts: parseInt($('cfg_pin_max_attempts').value, 10),
+        pin_lockout_hours: parseInt($('cfg_pin_lockout_hours').value, 10),
+        default_qty: parseInt($('cfg_default_qty').value, 10),
+        debug: $('cfg_debug').checked,
+        turnstile_site_key: $('cfg_turnstile_site_key').value.trim(),
+        turnstile_secret_key: $('cfg_turnstile_secret_key').value.trim(),
+        upcitemdb_key: $('cfg_upcitemdb_key').value.trim()
+      };
       payload.user_id = currentUser ? currentUser.id : null;
       try {
         var r = await fetch('/api/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
