@@ -496,6 +496,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #reader{width:100%;height:100%}
 #reader video{width:100%;height:100%;object-fit:cover}
 #reader canvas{position:absolute;top:0;left:0;width:100%;height:100%}
+#scanPrompt{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10}
+#scanPrompt p{color:#fff;font-size:18px;font-weight:500;margin-top:16px}
+#scanPrompt .hint{color:#888;font-size:14px;margin-top:6px}
 #result{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);padding:10px 12px;transform:translateY(100%);transition:transform .3s}
 #result.show{transform:translateY(0)}
 .edit-field{width:100%;padding:14px 16px;font-size:20px;background:#222;border:1px solid #555;border-radius:8px;color:#fff;margin-bottom:6px;outline:none}
@@ -516,8 +519,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #manual button{padding:10px 16px;font-size:16px;border:none;border-radius:8px;background:#007aff;color:#fff;cursor:pointer}
 #clearUpc{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:#666;font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;display:none;z-index:5}
 #manualInputWrap{position:relative;flex:1;display:flex}
-#btnSnap{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:55;width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:#34c759;color:#fff;font-size:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.5);touch-action:manipulation}
-#btnSnap:active{transform:translateX(-50%) scale(.92)}
+#btnSnap{width:120px;height:120px;border-radius:50%;border:6px solid #fff;background:#34c759;color:#fff;font-size:56px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(0,0,0,.5);touch-action:manipulation}
+#btnSnap:active{transform:scale(.92)}
 #btnSnap:disabled{opacity:.5}
 #photoOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px}
 #photoOverlay.show{display:flex}
@@ -611,8 +614,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="scanner">
   <div id="reader"></div>
-  <button id="btnPause" style="position:absolute;top:8px;right:8px;z-index:50;background:rgba(0,0,0,.6);border:none;border-radius:50%;color:#fff;font-size:20px;width:40px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center">⏸</button>
-  <button id="btnSnap" title="Snap barcode photo">&#128247;</button>
+  <button id="btnPause" style="position:absolute;top:8px;right:8px;z-index:50;background:rgba(0,0,0,.6);border:none;border-radius:50%;color:#fff;font-size:20px;width:40px;height:40px;cursor:pointer;display:none;align-items:center;justify-content:center">⏸</button>
+  <div id="scanPrompt">
+    <button id="btnSnap" title="Snap barcode photo">&#128247;</button>
+    <p>Click to scan a UPC code</p>
+    <span class="hint">Opens your camera app</span>
+  </div>
   <div id="result">
     <div style="position:relative">
       <input type="text" id="editName" class="edit-field" placeholder="Product name (required)" autocomplete="off">

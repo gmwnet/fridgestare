@@ -102,7 +102,7 @@ function loadUser() {
     $('userBadge').textContent = currentUser.name;
     $('logoutIcon').style.display = 'inline';
     $('pinOverlay').style.display = 'none';
-    if (page === 'scan' && !cameraStream) { scanLog('User logged in, starting scanner'); scanning = true; startScanner(); }
+    if (page === 'scan' && !cameraStream) { scanning = false; setScanPrompt(true); }
   } else {
     $('userBadge').textContent = '';
     $('logoutIcon').style.display = 'none';
@@ -206,6 +206,11 @@ $('clearUpc').addEventListener('click', function() {
   $('clearUpc').style.display = 'none';
 });
 
+function setScanPrompt(show) {
+  var el = $('scanPrompt');
+  if (el) el.style.display = show ? 'flex' : 'none';
+}
+
 // --- Photo snap scanning ---
 $('btnSnap').addEventListener('click', function() {
   if (processingPhoto) return;
@@ -216,6 +221,7 @@ $('photoInput').addEventListener('change', function(e) {
   this.value = '';
   if (!file) return;
   processingPhoto = true;
+  setScanPrompt(false);
   stopScanner();
   processPhotoFile(file);
 });
@@ -229,7 +235,7 @@ $('photoCancel').addEventListener('click', function() {
   $('photoOverlay').classList.remove('show');
   resetPhotoState();
   lastUpc = null;
-  if (scanning) setTimeout(function() { startScanner(); }, 300);
+  setScanPrompt(true);
 });
 
 function loadPhotoToCanvas(file, maxDim) {
@@ -405,6 +411,8 @@ function startScanner() {
 
   var doStart = function() {
     scanLog('Starting camera...');
+    setScanPrompt(false);
+    var bp = $('btnPause'); if (bp) bp.style.display = 'flex';
     $('reader').style.opacity = '1';
     scanCanvas = document.createElement('canvas');
     scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
@@ -646,6 +654,8 @@ function stopScanner() {
   overlayCanvas = null;
   var r = $('reader');
   while (r.firstChild) r.removeChild(r.firstChild);
+  var bp = $('btnPause'); if (bp) bp.style.display = 'none';
+  if (!processingPhoto) setScanPrompt(true);
 }
 
 async function lookupUpc(upc) {
@@ -700,7 +710,7 @@ async function doAction(action) {
   $('manualUpc').value = '';
   $('result').classList.remove('show');
   lastUpc = null;
-  if (scanning) setTimeout(function() { startScanner(); }, 300);
+  setScanPrompt(true);
 }
 
 // --- Page-specific code ---
@@ -763,7 +773,7 @@ $('btnTake').addEventListener('click', function() { doAction('take'); });
 $('btnCancel').addEventListener('click', function() {
   $('result').classList.remove('show');
   lastUpc = null;
-  if (scanning) setTimeout(function() { startScanner(); }, 300);
+  setScanPrompt(true);
 });
 
 $('editName').addEventListener('input', function() {
@@ -804,7 +814,6 @@ if (urlUpc && urlUpc.length >= 8) {
 
 document.addEventListener('visibilitychange', function() {
   if (document.hidden) { scanning = false; }
-  else if (!processingPhoto) { scanning = true; startScanner(); }
 });
 
 $('btnPause').addEventListener('click', function() {
@@ -820,7 +829,5 @@ $('btnPause').addEventListener('click', function() {
   }
 });
 
-// Start scanner on page load or after login
-if (currentUser) startScanner();
-
+// Video scanner no longer auto-starts; user taps the big photo button instead
 }
