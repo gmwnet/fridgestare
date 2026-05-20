@@ -354,6 +354,57 @@ if ($uri === '/api/search' && $method === 'GET') {
     jsonResponse(['results' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
+// --- API: Scan Photo (safety-net fallback) ---
+if ($uri === '/api/scan-photo' && $method === 'POST') {
+    if (empty($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+        $err = 'Photo upload failed';
+        if (!empty($_FILES['photo']['error'])) {
+            switch ($_FILES['photo']['error']) {
+                case UPLOAD_ERR_INI_SIZE: $err = 'Photo too large. Increase upload_max_filesize in php.ini.'; break;
+                case UPLOAD_ERR_FORM_SIZE: $err = 'Photo too large.'; break;
+                case UPLOAD_ERR_PARTIAL: $err = 'Photo partially uploaded.'; break;
+                case UPLOAD_ERR_NO_FILE: $err = 'No photo received.'; break;
+            }
+        }
+        jsonResponse(['success' => false, 'error' => $err], 400);
+    }
+
+    $tmpFile = $_FILES['photo']['tmp_name'];
+    $upc = null;
+    $method = null;
+
+    // Prefer zbarimg command-line tool
+    if (function_exists('shell_exec')) {
+        $zbarPath = trim(@shell_exec('which zbarimg 2>/dev/null') ?: '');
+        if ($zbarPath && file_exists($zbarPath)) {
+            $cmd = 'zbarimg --quiet --raw -S*.disable -Sean13.enable -Supca.enable -Sean8.enable -Supce.enable -Scode128.enable -Scode39.enable -Si25.enable '
+                 . escapeshellarg($tmpFile) . ' 2>/dev/null';
+            $output = @shell_exec($cmd);
+            if ($output) {
+                $lines = array_filter(explode("\n", trim($output)));
+                foreach ($lines as $line) {
+                    $parts = explode(':', $line, 2);
+                    $code = isset($parts[1]) ? $parts[1] : $line;
+                    $code = preg_replace('/[^0-9]/', '', $code);
+                    if (preg_match('/^\d{8,14}$/', $code)) {
+                        $upc = normalizeUpc($code);
+                        $method = 'zbarimg';
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    @unlink($tmpFile);
+
+    if ($upc) {
+        jsonResponse(['success' => true, 'upc' => $upc, 'method' => $method]);
+    } else {
+        jsonResponse(['success' => false, 'error' => 'No barcode found in photo. Try manual entry.']);
+    }
+}
+
 // --- API: Auth ---
 if ($uri === '/api/auth' && $method === 'POST') {
     $ip = clientIp();
@@ -424,7 +475,6 @@ $navItems = [
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>GroScan</title>
-<script src="html5-qrcode.min.js"></script>
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -445,6 +495,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #scanner{flex:1;position:relative;background:#111;overflow:hidden}
 #reader{width:100%;height:100%}
 #reader video{width:100%;height:100%;object-fit:cover}
+#reader canvas{position:absolute;top:0;left:0;width:100%;height:100%}
 #result{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);padding:10px 12px;transform:translateY(100%);transition:transform .3s}
 #result.show{transform:translateY(0)}
 .edit-field{width:100%;padding:14px 16px;font-size:20px;background:#222;border:1px solid #555;border-radius:8px;color:#fff;margin-bottom:6px;outline:none}
@@ -465,6 +516,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #manual button{padding:10px 16px;font-size:16px;border:none;border-radius:8px;background:#007aff;color:#fff;cursor:pointer}
 #clearUpc{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;color:#666;font-size:20px;cursor:pointer;line-height:1;padding:2px 6px;display:none;z-index:5}
 #manualInputWrap{position:relative;flex:1;display:flex}
+#btnSnap{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:55;width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:#34c759;color:#fff;font-size:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.5);touch-action:manipulation}
+#btnSnap:active{transform:translateX(-50%) scale(.92)}
+#btnSnap:disabled{opacity:.5}
+#photoOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:300;display:none;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+#photoOverlay.show{display:flex}
+#photoThumb{max-width:85vw;max-height:45vh;border-radius:8px;margin-bottom:12px;object-fit:contain}
+#photoStatus{color:#fff;font-size:16px;margin-bottom:16px;text-align:center}
+#photoRetry, #photoCancel{background:none;border:1px solid #555;border-radius:8px;color:#fff;padding:10px 20px;font-size:15px;cursor:pointer;margin:0 6px}
+#photoRetry{background:#007aff;border-color:#007aff}
 #banner{position:fixed;top:48px;left:0;right:0;background:#ff9500;color:#000;padding:8px 16px;font-size:13px;text-align:center;z-index:100;display:none}
 #errorOverlay{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:32px 48px;border-radius:16px;font-size:20px;font-weight:600;z-index:300;display:none;text-align:center;background:#ff3b30;color:#fff;min-width:200px;max-width:80vw;line-height:1.4}
 #errorOverlay.show{display:block}
@@ -552,6 +612,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="scanner">
   <div id="reader"></div>
   <button id="btnPause" style="position:absolute;top:8px;right:8px;z-index:50;background:rgba(0,0,0,.6);border:none;border-radius:50%;color:#fff;font-size:20px;width:40px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center">⏸</button>
+  <button id="btnSnap" title="Snap barcode photo">&#128247;</button>
   <div id="result">
     <div style="position:relative">
       <input type="text" id="editName" class="edit-field" placeholder="Product name (required)" autocomplete="off">
@@ -576,8 +637,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
   <button id="btnManual">Lookup</button>
 </div>
+<input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+<div id="photoOverlay">
+  <img id="photoThumb" src="" alt="">
+  <div id="photoStatus">Reading barcode...</div>
+  <div>
+    <button id="photoRetry">&#128247; Snap Again</button>
+    <button id="photoCancel">Cancel</button>
+  </div>
+</div>
+<div id="scannerLog" style="position:fixed;top:48px;left:0;right:0;background:rgba(0,0,0,.85);color:#0f0;font:12px monospace;padding:6px 10px;max-height:80px;overflow-y:auto;z-index:105;display:none"></div>
 
-<script id="groscan-config" type="application/json">{"page":"<?= $page ?>","turnstileKey":"<?= !empty($cfg['turnstile_site_key']) ? $cfg['turnstile_site_key'] : '' ?>"}</script>
+<script id="groscan-config" type="application/json">{"page":"<?= $page ?>","turnstileKey":"<?= !empty($cfg['turnstile_site_key']) ? $cfg['turnstile_site_key'] : '' ?>","debug":<?= !empty($cfg['debug']) && $cfg['debug'] ? 'true' : 'false' ?>}</script>
+<script src="zbar-wasm.js"></script>
 <script src="groscan.js"></script>
 </body>
 </html>
