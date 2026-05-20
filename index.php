@@ -143,7 +143,8 @@ try { $db->exec("ALTER TABLE products ADD COLUMN tags TEXT"); } catch (PDOExcept
 $countStmt = $db->query("SELECT COUNT(*) FROM users");
 if ($countStmt && (int)$countStmt->fetchColumn() === 0) {
     $defaultHash = password_hash('1234', PASSWORD_DEFAULT);
-    $db->exec("INSERT INTO users (name, pin_hash) VALUES ('default user', '$defaultHash')");
+    $stmt = $db->prepare("INSERT INTO users (name, pin_hash) VALUES ('default user', ?)");
+    $stmt->execute([$defaultHash]);
 }
 
 // --- Helpers ---
@@ -160,9 +161,6 @@ function getUpcVariants($rawUpc) {
     $variants = [normalizeUpc($rawUpc)];
     if (strlen($d) === 12) {
         $variants[] = $d;
-        $sum = 0;
-        for ($i = 0; $i < 12; $i++) $sum += (int)$d[$i] * ($i % 2 === 0 ? 1 : 3);
-        $variants[] = $d . ((10 - ($sum % 10)) % 10);
     }
     return array_unique($variants);
 }
@@ -218,9 +216,9 @@ function clientIp() {
 }
 
 // --- Router ---
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
-$uri = rtrim($uri, '/') ?: '/';
+$uri = is_string($uri) ? rtrim($uri, '/') : '/';
 
 // --- API: Lookup ---
 if ($uri === '/api/lookup' && $method === 'GET') {

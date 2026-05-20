@@ -218,10 +218,6 @@ function setScanPrompt(show) {
 // --- Photo snap scanning ---
 if ($('btnSnap')) $('btnSnap').addEventListener('click', function() {
   if (processingPhoto) return;
-  if ($('noCameraNote') && $('noCameraNote').style.display === 'block') {
-    $('photoInput').click();
-    return;
-  }
   $('photoInput').click();
 });
 $('photoInput').addEventListener('change', function(e) {
@@ -555,23 +551,21 @@ async function doAction(action) {
   var brand = $('editBrand').value.trim();
   try {
     var data = await apiAction(lastProduct.upc, action, name, brand);
-    if (data.success) {
-      lastProduct.inventory_qty = data.new_qty;
-      $('prodQty').textContent = data.new_qty > 0 ? 'In stock: ' + data.new_qty : '';
-      await fetch('/api/tag', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ upc: lastProduct.upc, tags: selectedTags })
-      });
-      var f = $('flash');
-      f.textContent = action === 'add' ? 'Added!' : 'Taken!';
-      f.className = 'show ' + action;
-      setTimeout(function() { f.className = ''; }, 1000);
-    } else {
-      showError(data.error || 'Action failed');
-    }
+    if (!data.success) { showError(data.error || 'Action failed'); return; }
+    lastProduct.inventory_qty = data.new_qty;
+    $('prodQty').textContent = data.new_qty > 0 ? 'In stock: ' + data.new_qty : '';
+    await fetch('/api/tag', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upc: lastProduct.upc, tags: selectedTags })
+    });
+    var f = $('flash');
+    f.textContent = action === 'add' ? 'Added!' : 'Taken!';
+    f.className = 'show ' + action;
+    setTimeout(function() { f.className = ''; }, 1000);
   } catch (e) {
     showError('Network error');
+    return;
   }
   $('manualUpc').value = '';
   $('result').classList.remove('show');
