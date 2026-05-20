@@ -1020,6 +1020,7 @@ foreach ($qtys as $v) {
     <button id="btnSnap" title="Snap barcode photo">&#128247;</button>
     <p>Click to scan a UPC code</p>
     <span class="hint">Opens your camera app</span>
+    <div id="noCameraNote" style="display:none;margin-top:10px;padding:10px 16px;background:#332;border:1px solid #663;border-radius:8px;color:#cc0;font-size:13px;text-align:center;max-width:300px">No camera detected. Select a photo file or enter details manually.</div>
     <button id="btnNoUpc" style="margin-top:20px;padding:12px 24px;border:2px solid #666;border-radius:10px;background:#222;color:#fff;font-size:15px;cursor:pointer;touch-action:manipulation">No barcode? Add manually</button>
   </div>
   <div id="result">

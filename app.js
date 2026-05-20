@@ -216,6 +216,10 @@ function setScanPrompt(show) {
 // --- Photo snap scanning ---
 if ($('btnSnap')) $('btnSnap').addEventListener('click', function() {
   if (processingPhoto) return;
+  if ($('noCameraNote') && $('noCameraNote').style.display === 'block') {
+    $('photoInput').click();
+    return;
+  }
   $('photoInput').click();
 });
 $('photoInput').addEventListener('change', function(e) {
@@ -641,7 +645,27 @@ if (urlUpc && urlUpc.length >= 8) {
 } else {
   $('manualUpc').value = '';
 }
-}
+
+// --- Camera detection ---
+(function() {
+  var note = $('noCameraNote');
+  if (!note) return;
+  function hasNoCam() { note.style.display = 'block'; }
+  function hasCam() { note.style.display = 'none'; }
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.enumerateDevices !== 'function') {
+    hasNoCam();
+    return;
+  }
+  function doCheck() {
+    navigator.mediaDevices.enumerateDevices().then(function(devices) {
+      if (devices.some(function(d) { return d.kind === 'videoinput'; })) hasCam(); else hasNoCam();
+    }).catch(function() { hasNoCam(); });
+  }
+  doCheck();
+  setTimeout(doCheck, 1000);
+})();
+
+} // end if (page === 'scan')
 
 // --- Page-specific code ---
 if (page === 'inventory') {
