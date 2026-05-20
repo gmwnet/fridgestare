@@ -171,7 +171,7 @@ function formatTimestamp($utcString, $cfg) {
     try {
         $dt = new DateTime($utcString, new DateTimeZone('UTC'));
         $dt->setTimezone(new DateTimeZone($tz));
-        return $dt->format('Y-m-d H:i:s');
+        return $dt->format('M j g:i A');
     } catch (Exception $e) {
         return $utcString;
     }
@@ -496,11 +496,22 @@ if ($uri === '/api/config' && $method === 'POST') {
     file_put_contents(__DIR__ . '/config.php', "<?php\nreturn " . $export . ";\n");
 
     $changes = [];
+    $labels = [
+        'upcitemdb_key' => 'UPCItemDB key',
+        'turnstile_site_key' => 'Turnstile site key',
+        'turnstile_secret_key' => 'Turnstile secret key',
+        'timezone' => 'timezone',
+        'session_timeout_days' => 'session timeout',
+        'pin_max_attempts' => 'PIN max attempts',
+        'pin_lockout_hours' => 'PIN lockout duration',
+        'default_qty' => 'default quantity',
+        'debug' => 'debug mode',
+    ];
     foreach ($allowed as $k) {
-        if (array_key_exists($k, $input)) $changes[] = "$k = " . json_encode($input[$k]);
+        if (array_key_exists($k, $input)) $changes[] = $labels[$k] ?? $k;
     }
     if ($changes) {
-        logAdminAction($db, 'config_change', 'Changed: ' . implode(', ', $changes), $userId);
+        logAdminAction($db, 'config_change', 'Updated ' . implode(', ', $changes), $userId);
     }
     jsonResponse(['success' => true]);
 }
@@ -883,7 +894,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div id="settingsForm">
     <div class="set-row">
       <span class="set-label">Timezone</span>
-      <span class="set-val"><input type="text" id="cfg_timezone" placeholder="e.g. America/New_York"></span>
+      <span class="set-val"><select id="cfg_timezone"><?php
+$zones = DateTimeZone::listIdentifiers();
+$currentTz = $cfg['timezone'] ?? 'UTC';
+foreach ($zones as $zone) {
+    $sel = ($zone === $currentTz) ? ' selected' : '';
+    echo "<option value=\"$zone\"$sel>$zone</option>";
+}
+?></select></span>
     </div>
     <div class="set-row">
       <span class="set-label">Session Timeout (days)</span>
