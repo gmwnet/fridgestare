@@ -17,6 +17,16 @@ var photoSeq = 0;
 var tagUpc = null;
 var selectedTags = [];
 
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) return;
+  if (processingPhoto) {
+    photoSeq++;
+    $('photoOverlay').classList.remove('show');
+    resetPhotoState();
+  }
+  if (!zbarReady) initZbar();
+});
+
 function scanLog(msg) {
   if (!debug) return;
   scanLogCount++;
