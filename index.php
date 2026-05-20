@@ -617,6 +617,18 @@ if ($uri === '/api/user/change-pin' && $method === 'POST') {
     jsonResponse(['success' => true]);
 }
 
+// --- API: Emergency Unlock ---
+if ($uri === '/api/emergency-unlock' && $method === 'POST') {
+    if (empty($cfg['emergency_unlock'])) {
+        jsonResponse(['error' => 'Emergency unlock not enabled. Set emergency_unlock => true in config.php first.'], 403);
+    }
+    $input = json_decode(file_get_contents('php://input'), true);
+    $userId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+    $count = $db->exec("DELETE FROM rate_limits");
+    logAdminAction($db, 'emergency_unlock', "Cleared all PIN lockouts ($count rows)", $userId);
+    jsonResponse(['success' => true, 'cleared' => (int)$count, 'note' => "Set emergency_unlock back to false in config.php now."]);
+}
+
 // --- API: Auth ---
 if ($uri === '/api/auth' && $method === 'POST') {
     $ip = clientIp();

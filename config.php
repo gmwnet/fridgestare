@@ -28,6 +28,12 @@ return [
     // Default quantity for manual add without barcode
     'default_qty' => 1,
 
+    // --- Emergency ---
+
+    // Set to true to clear all PIN lockouts. Hit /api/emergency-unlock after changing this,
+    // then set back to false. Prevents the whole family from being locked out permanently.
+    'emergency_unlock' => false,
+
     // --- Developer ---
 
     // Show scanner debug overlay (frame info, decoder status)
