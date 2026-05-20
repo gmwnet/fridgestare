@@ -905,11 +905,26 @@ foreach ($zones as $zone) {
     </div>
     <div class="set-row">
       <span class="set-label">Session Timeout (days)</span>
-      <span class="set-val"><input type="text" id="cfg_session_timeout_days" placeholder="days"></span>
+      <span class="set-val"><select id="cfg_session_timeout_days"><?php
+$timeouts = [7,14,30,60,90,365];
+$curSess = (int)($cfg['session_timeout_days'] ?? 30);
+foreach ($timeouts as $v) {
+    $sel = ($v === $curSess) ? ' selected' : '';
+    $label = $v === 365 ? '1 year' : "$v days";
+    echo "<option value=\"$v\"$sel>$label</option>";
+}
+?></select></span>
     </div>
     <div class="set-row">
       <span class="set-label">PIN Max Attempts</span>
-      <span class="set-val"><input type="text" id="cfg_pin_max_attempts" placeholder="max attempts"></span>
+      <span class="set-val"><select id="cfg_pin_max_attempts"><?php
+$attempts = [1,2,3,5,10];
+$curAtt = (int)($cfg['pin_max_attempts'] ?? 3);
+foreach ($attempts as $v) {
+    $sel = ($v === $curAtt) ? ' selected' : '';
+    echo "<option value=\"$v\"$sel>$v</option>";
+}
+?></select></span>
     </div>
     <div class="set-row">
       <span class="set-label">PIN Lockout (hours)</span>
