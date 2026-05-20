@@ -806,13 +806,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .lg-take{background:#ff3b3033;color:#ff3b30}
 .lg-admin{background:#007aff33;color:#007aff}
 .lg-time{color:#666;font-size:12px;white-space:nowrap}
-#settingsPage,#usersPage{flex:1;overflow-y:auto;padding:12px 16px 8px}
+#settingsPage,#usersPage{flex:1;overflow-y:auto;padding:12px 16px 60px}
 #settingsPage h2,#usersPage h2{font-size:18px;margin-bottom:12px}
-.set-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #333}
+.set-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #333}
 .set-row:last-child{border-bottom:none}
 .set-label{flex:1;font-size:15px}
-.set-val{min-width:60px;text-align:right}
-.set-val input,.set-val select{width:100%;padding:8px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff}
+.set-val{min-width:140px;max-width:50%;text-align:right}
+.set-val input,.set-val select{width:100%;padding:10px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;-webkit-appearance:none;appearance:none}
 .usr-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #333}
 .usr-row:last-child{border-bottom:none}
 .usr-name{flex:1;font-size:15px}
