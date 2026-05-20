@@ -678,9 +678,9 @@ loadLedger();
       pin_lockout_hours: lh,
       default_qty: dq,
       debug: $('cfg_debug').checked,
-      turnstile_site_key: $('cfg_turnstile_site_key').value.trim(),
-      turnstile_secret_key: $('cfg_turnstile_secret_key').value.trim(),
-      upcitemdb_key: $('cfg_upcitemdb_key').value.trim()
+      turnstile_site_key: $('cfg_turnstile_site_key').value.trim().substring(0, 512),
+      turnstile_secret_key: $('cfg_turnstile_secret_key').value.trim().substring(0, 512),
+      upcitemdb_key: $('cfg_upcitemdb_key').value.trim().substring(0, 512)
     };
     payload.user_id = currentUser ? currentUser.id : null;
     try {

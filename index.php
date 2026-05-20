@@ -490,7 +490,14 @@ if ($uri === '/api/config' && $method === 'POST') {
                 'pin_lockout_hours','default_qty','debug'];
     $newCfg = $cfg;
     foreach ($allowed as $k) {
-        if (array_key_exists($k, $input)) $newCfg[$k] = $input[$k];
+        if (array_key_exists($k, $input)) {
+            $val = $input[$k];
+            if (in_array($k, ['upcitemdb_key','turnstile_site_key','turnstile_secret_key'])) {
+                $val = trim(strip_tags((string)$val));
+                if (strlen($val) > 512) $val = substr($val, 0, 512);
+            }
+            $newCfg[$k] = $val;
+        }
     }
     $export = var_export($newCfg, true);
     file_put_contents(__DIR__ . '/config.php', "<?php\nreturn " . $export . ";\n");
@@ -928,11 +935,26 @@ foreach ($attempts as $v) {
     </div>
     <div class="set-row">
       <span class="set-label">PIN Lockout (hours)</span>
-      <span class="set-val"><input type="text" id="cfg_pin_lockout_hours" placeholder="hours"></span>
+      <span class="set-val"><select id="cfg_pin_lockout_hours"><?php
+$lockouts = [1,2,4,8,12,24];
+$curLock = (int)($cfg['pin_lockout_hours'] ?? 1);
+foreach ($lockouts as $v) {
+    $sel = ($v === $curLock) ? ' selected' : '';
+    $label = $v === 24 ? '1 day' : ($v === 1 ? '1 hour' : "$v hours");
+    echo "<option value=\"$v\"$sel>$label</option>";
+}
+?></select></span>
     </div>
     <div class="set-row">
       <span class="set-label">Default Quantity</span>
-      <span class="set-val"><input type="text" id="cfg_default_qty" placeholder="default qty"></span>
+      <span class="set-val"><select id="cfg_default_qty"><?php
+$qtys = [1,2,3,5,10];
+$curQty = (int)($cfg['default_qty'] ?? 1);
+foreach ($qtys as $v) {
+    $sel = ($v === $curQty) ? ' selected' : '';
+    echo "<option value=\"$v\"$sel>$v</option>";
+}
+?></select></span>
     </div>
     <div class="set-row">
       <span class="set-label">Debug Mode</span>
