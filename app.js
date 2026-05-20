@@ -17,8 +17,21 @@ var photoSeq = 0;
 var tagUpc = null;
 var selectedTags = [];
 
+var hiddenAt = 0;
+
 document.addEventListener('visibilitychange', function() {
-  if (document.hidden) return;
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  var away = Date.now() - hiddenAt;
+  if (away > 30000) { location.reload(); return; }
+  if (processingPhoto) {
+    photoSeq++;
+    $('photoOverlay').classList.remove('show');
+    resetPhotoState();
+  }
+  if (!zbarReady) initZbar();
+});
+window.addEventListener('pageshow', function(e) {
+  if (!e.persisted) return;
   if (processingPhoto) {
     photoSeq++;
     $('photoOverlay').classList.remove('show');
