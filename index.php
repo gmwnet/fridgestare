@@ -283,6 +283,8 @@ if ($uri === '/api/action' && $method === 'POST') {
     $upc = normalizeUpc($rawUpc);
     $name = $input['name'] ?? null;
     $brand = $input['brand'] ?? null;
+    $qty = isset($input['qty']) ? (int)$input['qty'] : 1;
+    if ($qty < 1) $qty = 1;
     $userId = $input['user_id'] ?? null;
     if ($userId !== null) $userId = (int)$userId;
     if ($name !== null || $brand !== null) {
@@ -298,18 +300,18 @@ if ($uri === '/api/action' && $method === 'POST') {
     if ($action === 'add') {
         dbExecWithRetry($db,
             "INSERT INTO inventory (upc, quantity, updated_at)
-             VALUES (?, 1, datetime('now'))
-             ON CONFLICT(upc) DO UPDATE SET quantity = quantity + 1, updated_at = datetime('now')",
-            [$upc]
+             VALUES (?, ?, datetime('now'))
+             ON CONFLICT(upc) DO UPDATE SET quantity = quantity + ?, updated_at = datetime('now')",
+            [$upc, $qty, $qty]
         );
     } else {
         dbExecWithRetry($db,
             "INSERT INTO inventory (upc, quantity, updated_at)
              VALUES (?, 0, datetime('now'))
              ON CONFLICT(upc) DO UPDATE SET
-               quantity = CASE WHEN quantity > 0 THEN quantity - 1 ELSE 0 END,
+               quantity = CASE WHEN quantity >= ? THEN quantity - ? ELSE 0 END,
                updated_at = datetime('now')",
-            [$upc]
+            [$upc, $qty, $qty]
         );
         dbExecWithRetry($db, "DELETE FROM inventory WHERE upc = ? AND quantity = 0", [$upc]);
     }
@@ -657,7 +659,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button id="btnSnap" title="Snap barcode photo">&#128247;</button>
     <p>Click to scan a UPC code</p>
     <span class="hint">Opens your camera app</span>
-    <button id="btnNoUpc" style="margin-top:20px;background:none;border:none;color:#fff;font-size:15px;cursor:pointer;text-decoration:underline">No barcode? Add manually</button>
+    <button id="btnNoUpc" style="margin-top:20px;padding:12px 24px;border:2px solid #666;border-radius:10px;background:#222;color:#fff;font-size:15px;cursor:pointer;touch-action:manipulation">No barcode? Add manually</button>
   </div>
   <div id="result">
     <div style="position:relative">
@@ -693,8 +695,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
 </div>
 <div id="tagOverlay">
-  <h3>Tag this item</h3>
-  <p class="tag-sub">Pick categories for meal planning</p>
+  <h3>Add New Item</h3>
+  <p class="tag-sub">Enter details and pick categories</p>
+  <div style="position:relative;width:100%;max-width:400px">
+    <input type="text" id="manualName" class="edit-field" placeholder="Name (required)" autocomplete="off" style="margin-bottom:6px">
+    <div id="manualSuggestions" style="position:absolute;left:0;right:0;top:100%;background:#222;border:1px solid #555;border-top:none;border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;display:none;z-index:10"></div>
+  </div>
+  <input type="text" id="manualBrand" class="edit-field" placeholder="Brand (optional)" autocomplete="off" style="margin-bottom:6px;max-width:400px">
+  <div class="qty-row" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;max-width:400px;width:100%">
+    <span style="color:#888;font-size:15px">Quantity:</span>
+    <button id="manualQtyMinus" style="width:40px;height:40px;border:none;border-radius:8px;background:#555;color:#fff;font-size:20px;cursor:pointer">-</button>
+    <span id="manualQty" style="font-size:18px;font-weight:600;color:#fff;min-width:24px;text-align:center">1</span>
+    <button id="manualQtyPlus" style="width:40px;height:40px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:20px;cursor:pointer">+</button>
+  </div>
   <div class="tag-list">
     <button class="tag-btn" data-tag="Protein">Protein</button>
     <button class="tag-btn" data-tag="Main">Main</button>
@@ -705,8 +718,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button class="tag-btn" data-tag="Staple">Staple</button>
   </div>
   <div id="tagActions">
-    <button id="btnTagSave">Save Tags</button>
-    <button id="btnTagSkip">Skip</button>
+    <button id="btnTagSave">Save to Inventory</button>
+    <button id="btnTagSkip">Cancel</button>
   </div>
 </div>
 <div id="scannerLog" style="position:fixed;top:48px;left:0;right:0;background:rgba(0,0,0,.85);color:#0f0;font:12px monospace;padding:6px 10px;max-height:80px;overflow-y:auto;z-index:105;display:none"></div>
