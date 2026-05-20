@@ -1,8 +1,8 @@
 #!/bin/bash
-# Groventry Quick Deploy Script
+# FridgeStare Quick Deploy Script
 # Run on your server after uploading files
 
-echo "Groventry Deploy Script"
+echo "FridgeStare Deploy Script"
 echo "======================="
 
 # Check PHP version

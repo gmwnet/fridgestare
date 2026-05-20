@@ -1,5 +1,5 @@
 <?php
-// Groventry — Grocery UPC Scanner
+// FridgeStare — Grocery UPC Scanner
 // Single-file PHP app: scan barcodes, look up products, manage inventory
 
 $dbPath = __DIR__ . '/groscan.db';
@@ -24,14 +24,14 @@ class OpenFoodFactsProvider extends UpcLookupProvider {
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT => 5,
-                CURLOPT_USERAGENT => 'Groventry/1.0',
+                CURLOPT_USERAGENT => 'FridgeStare/1.0',
                 CURLOPT_FOLLOWLOCATION => true,
             ]);
             $response = @curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
         } else {
-            $ctx = stream_context_create(['http' => ['timeout' => 5, 'user_agent' => 'Groventry/1.0']]);
+            $ctx = stream_context_create(['http' => ['timeout' => 5, 'user_agent' => 'FridgeStare/1.0']]);
             $response = @file_get_contents($url, false, $ctx);
             $httpCode = isset($http_response_header) ? (int)explode(' ', $http_response_header[0])[1] : 0;
         }
@@ -67,7 +67,7 @@ class UpcItemDbProvider extends UpcLookupProvider {
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT => 5,
-                CURLOPT_USERAGENT => 'Groventry/1.0',
+                CURLOPT_USERAGENT => 'FridgeStare/1.0',
                 CURLOPT_HTTPHEADER => $headers,
                 CURLOPT_FOLLOWLOCATION => true,
             ]);
@@ -75,7 +75,7 @@ class UpcItemDbProvider extends UpcLookupProvider {
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
         } else {
-            $ctx = stream_context_create(['http' => ['timeout' => 5, 'user_agent' => 'Groventry/1.0', 'header' => implode("\r\n", $headers)]]);
+            $ctx = stream_context_create(['http' => ['timeout' => 5, 'user_agent' => 'FridgeStare/1.0', 'header' => implode("\r\n", $headers)]]);
             $response = @file_get_contents($url, false, $ctx);
             $httpCode = isset($http_response_header) ? (int)explode(' ', $http_response_header[0])[1] : 0;
         }
@@ -695,7 +695,7 @@ $navItems = [
 <meta name="theme-color" content="#111">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<title>Groventry</title>
+<title>FridgeStare</title>
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
@@ -813,7 +813,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="navBar">
   <button id="menuBtn">&#9776;</button>
   <img src="/favicon-32x32.png" alt="" style="width:24px;height:24px;margin-right:8px;border-radius:4px">
-  <span id="pageTitle"><?= $page === 'inventory' ? 'Inventory' : ($page === 'ledger' ? 'Ledger' : 'Groventry') ?></span>
+  <span id="pageTitle"><?= $page === 'inventory' ? 'Inventory' : ($page === 'ledger' ? 'Ledger' : 'FridgeStare') ?></span>
   <span style="display:flex;align-items:center;margin-left:auto"><span id="userBadge"></span><span id="logoutIcon" style="cursor:pointer;padding:4px 6px 4px 0;color:#ccc;display:none">
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -826,7 +826,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="sideMenu">
   <div style="display:flex;align-items:center;gap:10px;padding:12px 20px 10px;border-bottom:1px solid #333;margin-bottom:4px">
     <img src="/favicon-32x32.png" alt="" style="width:28px;height:28px;border-radius:4px">
-    <span style="font-size:18px;font-weight:600;color:#fff">Groventry</span>
+    <span style="font-size:18px;font-weight:600;color:#fff">FridgeStare</span>
   </div>
   <a href="/" class="<?= $page === 'scan' ? 'active' : '' ?>">Scanner</a>
   <a href="/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">Inventory</a>
