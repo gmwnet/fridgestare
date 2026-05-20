@@ -29,7 +29,7 @@ function scanLog(msg) {
   el.scrollTop = el.scrollHeight;
 }
 
-initZbar();
+if (page === 'scan') initZbar();
 function initZbar() {
   if (typeof zbarWasm === 'undefined') { scanLog('zbarWasm global not found'); return; }
   if (zbarReady) { return; }
@@ -156,6 +156,8 @@ function dom(tag, attrs) {
   }
   return el;
 }
+
+if (page === 'scan') {
 
 // --- Manual entry ---
 $('btnManual').addEventListener('click', function() {
@@ -528,6 +530,67 @@ async function doAction(action) {
   setScanPrompt(true);
 }
 
+// --- Scanner page initializations ---
+function generateInternalUpc() {
+  return '2' + String(Date.now()).slice(-12);
+}
+
+if ($('btnNoUpc')) $('btnNoUpc').addEventListener('click', function() {
+  var upc = generateInternalUpc();
+  lastUpc = upc;
+  tagUpc = upc;
+  resetManualForm();
+  setScanPrompt(false);
+  showTagOverlay(upc, '', '');
+  $('manualName').focus();
+});
+
+$('btnAdd').addEventListener('click', function() { doAction('add'); });
+$('btnTake').addEventListener('click', function() { doAction('take'); });
+
+$('btnCancel').addEventListener('click', function() {
+  $('result').classList.remove('show');
+  lastUpc = null;
+  setScanPrompt(true);
+});
+
+$('editName').addEventListener('input', function() {
+  $('btnAdd').disabled = !$('editName').value.trim();
+  clearTimeout(suggestTimer);
+  var val = $('editName').value.trim();
+  if (val.length < 2) { $('suggestions').classList.remove('show'); return; }
+  suggestTimer = setTimeout(async function() {
+    try {
+      var res = await fetch('/api/search?q=' + encodeURIComponent(val));
+      var data = await res.json();
+      var list = $('suggestions');
+      while (list.firstChild) list.removeChild(list.firstChild);
+      data.results.forEach(function(r) {
+        var div = dom('div', {'data-upc':r.upc, 'data-name':r.name, 'data-brand':r.brand || ''}, esc(r.name));
+        if (r.brand) div.appendChild(dom('span', {'class':'sug-brand'}, ' ' + esc(r.brand)));
+        div.addEventListener('click', function() {
+          $('editName').value = this.dataset.name;
+          $('editBrand').value = this.dataset.brand;
+          $('suggestions').classList.remove('show');
+          $('btnAdd').disabled = false;
+          $('editName').focus();
+        });
+        list.appendChild(div);
+      });
+    } catch (e) {}
+  }, 200);
+});
+document.addEventListener('click', function(e) { if (!e.target.closest('#result > div')) $('suggestions').classList.remove('show'); });
+
+var urlUpc = new URLSearchParams(window.location.search).get('upc');
+if (urlUpc && urlUpc.length >= 8) {
+  $('manualUpc').value = urlUpc;
+  lookupUpc(urlUpc);
+} else {
+  $('manualUpc').value = '';
+}
+}
+
 // --- Page-specific code ---
 if (page === 'inventory') {
 
@@ -543,12 +606,10 @@ async function loadInvPage() {
       var take = dom('button', {'class':'invp-btn invp-take', 'data-upc':item.upc, 'data-action':'take'}, '\u2212');
       var add = dom('button', {'class':'invp-btn invp-add', 'data-upc':item.upc, 'data-action':'add'}, '+');
       take.addEventListener('click', async function() {
-        $('manualUpc').value = '';
         var d = await apiAction(this.dataset.upc, 'take');
         if (d.success) loadInvPage();
       });
       add.addEventListener('click', async function() {
-        $('manualUpc').value = '';
         var d = await apiAction(this.dataset.upc, 'add');
         if (d.success) loadInvPage();
       });
@@ -588,120 +649,53 @@ loadLedger();
 
 } else if (page === 'settings') {
 
-var timezones = [
-  'UTC','America/New_York','America/Chicago','America/Denver',
-  'America/Los_Angeles','America/Phoenix','America/Anchorage',
-  'America/Toronto','America/Mexico_City','America/Sao_Paulo',
-  'Europe/London','Europe/Paris','Europe/Berlin','Europe/Madrid',
-  'Europe/Rome','Europe/Amsterdam','Europe/Moscow',
-  'Asia/Tokyo','Asia/Shanghai','Asia/Hong_Kong','Asia/Singapore',
-  'Asia/Seoul','Asia/Dubai','Asia/Kolkata','Asia/Bangkok',
-  'Australia/Sydney','Australia/Melbourne','Pacific/Auckland'
-];
-
-async function loadSettings() {
+(async function() {
   try {
     var res = await fetch('/api/config');
     var data = await res.json();
-    var form = $('settingsForm');
-    while (form.firstChild) form.removeChild(form.firstChild);
+    $('cfg_timezone').value = data.timezone || 'UTC';
+    $('cfg_session_timeout_days').value = data.session_timeout_days || 30;
+    $('cfg_pin_max_attempts').value = data.pin_max_attempts || 3;
+    $('cfg_pin_lockout_hours').value = data.pin_lockout_hours || 1;
+    $('cfg_default_qty').value = data.default_qty || 1;
+    $('cfg_debug').checked = !!data.debug;
+    $('cfg_turnstile_site_key').value = data.turnstile_site_key || '';
+    $('cfg_turnstile_secret_key').value = data.turnstile_secret_key || '';
+    $('cfg_upcitemdb_key').value = data.upcitemdb_key || '';
+  } catch (e) { console.error('loadSettings error:', e); }
 
-    function addRow(label, el) {
-      var row = dom('div', {'class':'set-row'});
-      row.appendChild(dom('span', {'class':'set-label'}, label));
-      var wrap = dom('span', {'class':'set-val'});
-      wrap.appendChild(el);
-      form.appendChild(row);
-    }
+  $('btnSaveSettings').addEventListener('click', async function() {
+    var tz = $('cfg_timezone').value.trim();
+    var sd = parseInt($('cfg_session_timeout_days').value, 10);
+    var pa = parseInt($('cfg_pin_max_attempts').value, 10);
+    var lh = parseInt($('cfg_pin_lockout_hours').value, 10);
+    var dq = parseInt($('cfg_default_qty').value, 10);
 
-    // Timezone
-    var tzSel = dom('select', {'id':'cfg_timezone'});
-    timezones.forEach(function(z) {
-      var opt = dom('option', {'value':z}, z);
-      if (z === (data.timezone||'UTC')) opt.selected = true;
-      tzSel.appendChild(opt);
-    });
-    addRow('Timezone', tzSel);
-
-    // Session timeout
-    var sessSel = dom('select', {'id':'cfg_session_timeout_days'});
-    [7,14,30,60,90,365].forEach(function(v) {
-      var opt = dom('option', {'value':String(v)}, v + ' days');
-      if (v === (data.session_timeout_days||30)) opt.selected = true;
-      sessSel.appendChild(opt);
-    });
-    addRow('Session Timeout', sessSel);
-
-    // PIN max attempts
-    var attSel = dom('select', {'id':'cfg_pin_max_attempts'});
-    [1,2,3,5,10].forEach(function(v) {
-      var opt = dom('option', {'value':String(v)}, String(v));
-      if (v === (data.pin_max_attempts||3)) opt.selected = true;
-      attSel.appendChild(opt);
-    });
-    addRow('PIN Max Attempts', attSel);
-
-    // PIN lockout hours
-    var lockSel = dom('select', {'id':'cfg_pin_lockout_hours'});
-    [1,2,4,8,12,24].forEach(function(v) {
-      var opt = dom('option', {'value':String(v)}, v + ' hour' + (v>1?'s':''));
-      if (v === (data.pin_lockout_hours||1)) opt.selected = true;
-      lockSel.appendChild(opt);
-    });
-    addRow('PIN Lockout Duration', lockSel);
-
-    // Default quantity
-    var qtySel = dom('select', {'id':'cfg_default_qty'});
-    [1,2,3,5,10].forEach(function(v) {
-      var opt = dom('option', {'value':String(v)}, String(v));
-      if (v === (data.default_qty||1)) opt.selected = true;
-      qtySel.appendChild(opt);
-    });
-    addRow('Default Quantity', qtySel);
-
-    // Debug mode
-    var dbgCb = dom('input', {'type':'checkbox','id':'cfg_debug'});
-    dbgCb.checked = !!data.debug;
-    addRow('Debug Mode', dbgCb);
-
-    // Danger Zone
-    form.appendChild(dom('h3', {'style':'color:#ff3b30;font-size:16px;margin:20px 0 8px;border-top:1px solid #333;padding-top:12px'}, '⚠ Danger Zone'));
-    form.appendChild(dom('p', {'style':'color:#888;font-size:13px;margin-bottom:12px'}, 'These settings affect external services and security.'));
-
-    var siteKey = dom('input', {'type':'text','id':'cfg_turnstile_site_key','value':data.turnstile_site_key||'','placeholder':'Cloudflare Turnstile Site Key'});
-    addRow('Turnstile Site Key', siteKey);
-
-    var secKey = dom('input', {'type':'text','id':'cfg_turnstile_secret_key','value':data.turnstile_secret_key||'','placeholder':'Cloudflare Turnstile Secret Key'});
-    addRow('Turnstile Secret Key', secKey);
-
-    var upcKey = dom('input', {'type':'text','id':'cfg_upcitemdb_key','value':data.upcitemdb_key||'','placeholder':'UPCItemDB API Key (optional)'});
-    addRow('UPCItemDB Key', upcKey);
-
-    var save = dom('button', {'id':'btnSaveSettings'}, 'Save Settings');
-    save.addEventListener('click', async function() {
-      var payload = {
-        timezone: $('cfg_timezone').value,
-        session_timeout_days: parseInt($('cfg_session_timeout_days').value, 10),
-        pin_max_attempts: parseInt($('cfg_pin_max_attempts').value, 10),
-        pin_lockout_hours: parseInt($('cfg_pin_lockout_hours').value, 10),
-        default_qty: parseInt($('cfg_default_qty').value, 10),
-        debug: $('cfg_debug').checked,
-        turnstile_site_key: $('cfg_turnstile_site_key').value.trim(),
-        turnstile_secret_key: $('cfg_turnstile_secret_key').value.trim(),
-        upcitemdb_key: $('cfg_upcitemdb_key').value.trim()
-      };
-      payload.user_id = currentUser ? currentUser.id : null;
-      try {
-        var r = await fetch('/api/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-        var d = await r.json();
-        if (d.success) { showError('Settings saved.'); }
-        else showError(d.error || 'Save failed');
-      } catch (e) { showError('Network error'); }
-    });
-    form.appendChild(save);
-  } catch (e) {}
-}
-loadSettings();
+    var payload = {
+      timezone: tz,
+      session_timeout_days: sd,
+      pin_max_attempts: pa,
+      pin_lockout_hours: lh,
+      default_qty: dq,
+      debug: $('cfg_debug').checked,
+      turnstile_site_key: $('cfg_turnstile_site_key').value.trim(),
+      turnstile_secret_key: $('cfg_turnstile_secret_key').value.trim(),
+      upcitemdb_key: $('cfg_upcitemdb_key').value.trim()
+    };
+    payload.user_id = currentUser ? currentUser.id : null;
+    try {
+      var r = await fetch('/api/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      var d = await r.json();
+      if (d.success) {
+        var f = $('flash');
+        f.textContent = 'Settings saved.';
+        f.className = 'show add';
+        setTimeout(function() { f.className = ''; }, 2000);
+      }
+      else showError(d.error || 'Save failed');
+    } catch (e) { showError('Network error'); }
+  });
+})();
 
 } else if (page === 'users') {
 
@@ -763,65 +757,4 @@ $('btnChangeMyPin').addEventListener('click', async function() {
 
 loadUsers();
 
-} else {
-
-// --- Scanner page initializations ---
-function generateInternalUpc() {
-  return '2' + String(Date.now()).slice(-12);
-}
-
-if ($('btnNoUpc')) $('btnNoUpc').addEventListener('click', function() {
-  var upc = generateInternalUpc();
-  lastUpc = upc;
-  tagUpc = upc;
-  resetManualForm();
-  setScanPrompt(false);
-  showTagOverlay(upc, '', '');
-  $('manualName').focus();
-});
-
-$('btnAdd').addEventListener('click', function() { doAction('add'); });
-$('btnTake').addEventListener('click', function() { doAction('take'); });
-
-$('btnCancel').addEventListener('click', function() {
-  $('result').classList.remove('show');
-  lastUpc = null;
-  setScanPrompt(true);
-});
-
-$('editName').addEventListener('input', function() {
-  $('btnAdd').disabled = !$('editName').value.trim();
-  clearTimeout(suggestTimer);
-  var val = $('editName').value.trim();
-  if (val.length < 2) { $('suggestions').classList.remove('show'); return; }
-  suggestTimer = setTimeout(async function() {
-    try {
-      var res = await fetch('/api/search?q=' + encodeURIComponent(val));
-      var data = await res.json();
-      var list = $('suggestions');
-      while (list.firstChild) list.removeChild(list.firstChild);
-      data.results.forEach(function(r) {
-        var div = dom('div', {'data-upc':r.upc, 'data-name':r.name, 'data-brand':r.brand || ''}, esc(r.name));
-        if (r.brand) div.appendChild(dom('span', {'class':'sug-brand'}, ' ' + esc(r.brand)));
-        div.addEventListener('click', function() {
-          $('editName').value = this.dataset.name;
-          $('editBrand').value = this.dataset.brand;
-          $('suggestions').classList.remove('show');
-          $('btnAdd').disabled = false;
-          $('editName').focus();
-        });
-        list.appendChild(div);
-      });
-    } catch (e) {}
-  }, 200);
-});
-document.addEventListener('click', function(e) { if (!e.target.closest('#result > div')) $('suggestions').classList.remove('show'); });
-
-var urlUpc = new URLSearchParams(window.location.search).get('upc');
-if (urlUpc && urlUpc.length >= 8) {
-  $('manualUpc').value = urlUpc;
-  lookupUpc(urlUpc);
-} else {
-  $('manualUpc').value = '';
-}
 }

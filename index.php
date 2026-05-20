@@ -715,7 +715,7 @@ $navItems = [
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#000;color:#fff;height:100dvh;display:flex;flex-direction:column;padding:48px 0 46px;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#000;color:#fff;height:100dvh;display:flex;flex-direction:column;padding:48px 0 46px;overflow-x:hidden;overscroll-behavior:none}
 #navBar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;padding:0 12px;background:#1a1a1a;border-bottom:1px solid #333;z-index:110}
 #menuBtn{background:none;border:none;color:#fff;font-size:26px;cursor:pointer;padding:4px 8px;margin-right:10px;line-height:1}
 #pageTitle{font-size:17px;font-weight:600}
@@ -777,7 +777,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #errorOverlay{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:32px 48px;border-radius:16px;font-size:20px;font-weight:600;z-index:300;display:none;text-align:center;background:#ff3b30;color:#fff;min-width:200px;max-width:80vw;line-height:1.4}
 #errorOverlay.show{display:block}
 #errorClose{position:absolute;top:2px;right:10px;background:none;border:none;color:#fff;font-size:36px;cursor:pointer;font-weight:700;line-height:1;padding:4px 8px}
-#pinOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:500;display:flex;align-items:center;justify-content:center}
+#pinOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center}
 #pinBox{background:#1a1a1a;padding:32px;border-radius:16px;text-align:center;min-width:300px}
 #pinBox h2{font-size:22px;margin-bottom:4px}
 #pinBox p{color:#888;font-size:14px;margin-bottom:20px}
@@ -806,18 +806,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .lg-take{background:#ff3b3033;color:#ff3b30}
 .lg-admin{background:#007aff33;color:#007aff}
 .lg-time{color:#666;font-size:12px;white-space:nowrap}
-#settingsPage,#usersPage{flex:1;overflow-y:auto;padding:12px 16px 60px}
+#settingsPage,#usersPage{flex:1;overflow-y:auto;padding:12px 16px 60px;position:relative;z-index:10}
 #settingsPage h2,#usersPage h2{font-size:18px;margin-bottom:12px}
-.set-row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #333}
+.set-row{padding:12px 0;border-bottom:1px solid #333}
 .set-row:last-child{border-bottom:none}
-.set-label{flex:1;font-size:15px}
-.set-val{min-width:140px;max-width:50%;text-align:right}
-.set-val input,.set-val select{width:100%;padding:10px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff}
+.set-label{display:block;font-size:13px;color:#888;margin-bottom:4px}
+.set-val{display:block}
+.set-val input,.set-val select{width:100%;padding:10px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;touch-action:manipulation;pointer-events:auto}
+.set-val input[type="checkbox"]{width:auto;padding:0;margin:0}
 .usr-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #333}
 .usr-row:last-child{border-bottom:none}
 .usr-name{flex:1;font-size:15px}
 .usr-del{padding:6px 12px;font-size:13px;border:none;border-radius:6px;background:#ff3b30;color:#fff;cursor:pointer}
-#btnSaveSettings{padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer;margin-top:12px}
+#btnSaveSettings{padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer;margin-top:12px;touch-action:manipulation}
 </style>
 </head>
 <body>
@@ -879,7 +880,50 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="settingsPage">
   <h2>Settings</h2>
-  <div id="settingsForm"></div>
+  <div id="settingsForm">
+    <div class="set-row">
+      <span class="set-label">Timezone</span>
+      <span class="set-val"><input type="text" id="cfg_timezone" placeholder="e.g. America/New_York"></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">Session Timeout (days)</span>
+      <span class="set-val"><input type="text" id="cfg_session_timeout_days" placeholder="days"></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">PIN Max Attempts</span>
+      <span class="set-val"><input type="text" id="cfg_pin_max_attempts" placeholder="max attempts"></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">PIN Lockout (hours)</span>
+      <span class="set-val"><input type="text" id="cfg_pin_lockout_hours" placeholder="hours"></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">Default Quantity</span>
+      <span class="set-val"><input type="text" id="cfg_default_qty" placeholder="default qty"></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">Debug Mode</span>
+      <span class="set-val"><input type="checkbox" id="cfg_debug"></span>
+    </div>
+
+    <h3 style="color:#ff3b30;font-size:16px;margin:20px 0 8px;border-top:1px solid #333;padding-top:12px">Danger Zone</h3>
+    <p style="color:#888;font-size:13px;margin-bottom:12px">These settings affect external services and security.</p>
+
+    <div class="set-row">
+      <span class="set-label">Turnstile Site Key</span>
+      <span class="set-val"><input type="text" id="cfg_turnstile_site_key" placeholder="Cloudflare Turnstile Site Key"></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">Turnstile Secret Key</span>
+      <span class="set-val"><input type="text" id="cfg_turnstile_secret_key" placeholder="Cloudflare Turnstile Secret Key"></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">UPCItemDB Key</span>
+      <span class="set-val"><input type="text" id="cfg_upcitemdb_key" placeholder="UPCItemDB API Key (optional)"></span>
+    </div>
+
+    <button id="btnSaveSettings">Save Settings</button>
+  </div>
 </div>
 
 <?php elseif ($page === 'users'): ?>
@@ -926,7 +970,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <?php endif; ?>
-<?php if ($page === 'settings' || $page === 'users'): ?><style>#manual{display:none}</style><?php endif; ?>
+<?php if ($page === 'scan'): ?>
 <div id="manual">
   <div id="manualInputWrap">
     <input type="text" id="manualUpc" inputmode="numeric" pattern="[0-9]*" placeholder="Enter UPC..." maxlength="14">
@@ -973,9 +1017,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
 </div>
 <div id="scannerLog" style="position:fixed;top:48px;left:0;right:0;background:rgba(0,0,0,.85);color:#0f0;font:12px monospace;padding:6px 10px;max-height:80px;overflow-y:auto;z-index:105;display:none"></div>
+<?php endif; ?>
 
 <script id="groscan-config" type="application/json">{"page":"<?= $page ?>","turnstileKey":"<?= !empty($cfg['turnstile_site_key']) ? $cfg['turnstile_site_key'] : '' ?>","debug":<?= !empty($cfg['debug']) && $cfg['debug'] ? 'true' : 'false' ?>,"sessionDays":<?= (int)($cfg['session_timeout_days'] ?? 30) ?>}</script>
-<script src="zbar-wasm.js"></script>
+<?php if ($page === 'scan'): ?><script src="zbar-wasm.js"></script><?php endif; ?>
 <script src="groscan.js"></script>
 </body>
 </html>
