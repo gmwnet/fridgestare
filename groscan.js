@@ -13,6 +13,8 @@ var zbarReady = false;
 var scanLogCount = 0;
 var processingPhoto = false;
 var photoSeq = 0;
+var tagUpc = null;
+var selectedTags = [];
 
 function scanLog(msg) {
   if (!debug) return;
@@ -339,6 +341,49 @@ async function uploadPhotoFile(file, mySeq) {
   }
 }
 
+// --- Tag overlay ---
+function showTagOverlay(upc, name) {
+  tagUpc = upc;
+  selectedTags = [];
+  document.querySelectorAll('.tag-btn').forEach(function(btn) {
+    btn.classList.remove('active');
+  });
+  $('tagOverlay').classList.add('show');
+}
+
+function hideTagOverlay() {
+  $('tagOverlay').classList.remove('show');
+  tagUpc = null;
+}
+
+async function saveTags() {
+  if (!tagUpc) return;
+  try {
+    await fetch('/api/tag', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upc: tagUpc, tags: selectedTags })
+    });
+  } catch (e) {}
+  hideTagOverlay();
+}
+
+document.querySelectorAll('.tag-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var tag = this.dataset.tag;
+    if (selectedTags.includes(tag)) {
+      selectedTags = selectedTags.filter(function(t) { return t !== tag; });
+      this.classList.remove('active');
+    } else {
+      selectedTags.push(tag);
+      this.classList.add('active');
+    }
+  });
+});
+
+$('btnTagSave').addEventListener('click', saveTags);
+$('btnTagSkip').addEventListener('click', hideTagOverlay);
+
 // --- Detection feedback ---
 function detectionFlash() {
   var r = $('reader');
@@ -383,6 +428,9 @@ async function lookupUpc(upc) {
     $('btnAdd').disabled = !$('editName').value.trim();
     if (data.warning) { $('banner').textContent = upc + ': ' + data.warning; $('banner').style.display = 'block'; }
     setScanPrompt(false);
+    if (p && (!p.tags || p.tags.length === 0)) {
+      showTagOverlay(data.upc, p.name || 'Unknown');
+    }
     $('result').classList.add('show');
     if (!p || !p.name) $('editName').focus();
   } catch (e) {
@@ -412,6 +460,7 @@ async function doAction(action) {
   }
   $('manualUpc').value = '';
   $('result').classList.remove('show');
+  hideTagOverlay();
   lastUpc = null;
   setScanPrompt(true);
 }
@@ -475,6 +524,7 @@ $('btnTake').addEventListener('click', function() { doAction('take'); });
 
 $('btnCancel').addEventListener('click', function() {
   $('result').classList.remove('show');
+  hideTagOverlay();
   lastUpc = null;
   setScanPrompt(true);
 });

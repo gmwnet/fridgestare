@@ -105,6 +105,7 @@ $db->exec("
         category    TEXT,
         quantity    TEXT,
         image_url   TEXT,
+        tags        TEXT,
         fetched_at  DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS inventory (
@@ -134,6 +135,7 @@ $db->exec("
 try { $db->exec("ALTER TABLE ledger ADD COLUMN user_id INTEGER"); } catch (PDOException $e) {}
 try { $db->exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, pin_hash TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"); } catch (PDOException $e) {}
 try { $db->exec("CREATE TABLE IF NOT EXISTS rate_limits (ip TEXT PRIMARY KEY, attempts INTEGER DEFAULT 0, locked_until DATETIME)"); } catch (PDOException $e) {}
+try { $db->exec("ALTER TABLE products ADD COLUMN tags TEXT"); } catch (PDOException $e) {}
 
 // --- Helpers ---
 function normalizeUpc($upc) {
@@ -219,6 +221,7 @@ if ($uri === '/api/lookup' && $method === 'GET') {
                 'category' => $product['category'],
                 'quantity' => $product['quantity'],
                 'image_url' => $product['image_url'],
+                'tags' => $product['tags'] ? json_decode($product['tags'], true) : [],
             ],
             'inventory_qty' => $inv ? (int)$inv['quantity'] : 0,
             'warning' => null,
@@ -238,12 +241,12 @@ if ($uri === '/api/lookup' && $method === 'GET') {
         // Cache fresh data
         $productData['upc'] = $upc;
         $stmt = $db->prepare(
-            "INSERT OR REPLACE INTO products (upc, name, brand, category, quantity, image_url)
-             VALUES (?, ?, ?, ?, ?, ?)"
+            "INSERT OR REPLACE INTO products (upc, name, brand, category, quantity, image_url, tags)
+             VALUES (?, ?, ?, ?, ?, ?, COALESCE((SELECT tags FROM products WHERE upc = ?), NULL))"
         );
         $stmt->execute([
             $upc, $productData['name'], $productData['brand'],
-            $productData['category'], $productData['quantity'], $productData['image_url']
+            $productData['category'], $productData['quantity'], $productData['image_url'], $upc
         ]);
         $product = $productData;
     } else {
@@ -262,6 +265,7 @@ if ($uri === '/api/lookup' && $method === 'GET') {
             'category' => $product['category'],
             'quantity' => $product['quantity'],
             'image_url'=> $product['image_url'],
+            'tags'     => !empty($product['tags']) ? json_decode($product['tags'], true) : [],
         ] : null,
         'inventory_qty' => $inv ? (int)$inv['quantity'] : 0,
         'warning'      => $warning,
@@ -402,7 +406,26 @@ if ($uri === '/api/scan-photo' && $method === 'POST') {
         jsonResponse(['success' => true, 'upc' => $upc, 'method' => $method]);
     } else {
         jsonResponse(['success' => false, 'error' => 'No barcode found in photo. Try manual entry.']);
+}
+
+// --- API: Tag ---
+if ($uri === '/api/tag' && $method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $rawUpc = $input['upc'] ?? '';
+    $tags = $input['tags'] ?? [];
+    if (!preg_match('/^\d{8,14}$/', $rawUpc) || !is_array($tags)) {
+        jsonResponse(['error' => 'Invalid request'], 400);
     }
+    $upc = normalizeUpc($rawUpc);
+    $validTags = ['Protein', 'Main', 'Sauce', 'Side', 'Snack', 'Use Soon', 'Staple'];
+    $cleanTags = array_values(array_filter($tags, function($t) use ($validTags) { return in_array($t, $validTags, true); }));
+    $stmt = $db->prepare(
+        "INSERT INTO products (upc, name, brand, category, quantity, image_url, tags, fetched_at)
+         VALUES (?, NULL, NULL, NULL, NULL, NULL, ?, datetime('now'))
+         ON CONFLICT(upc) DO UPDATE SET tags = excluded.tags"
+    );
+    $stmt->execute([$upc, json_encode($cleanTags)]);
+    jsonResponse(['success' => true, 'tags' => $cleanTags]);
 }
 
 // --- API: Auth ---
@@ -495,7 +518,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #sideMenu a.active{color:#fff;background:#333;border-left:3px solid #007aff}
 #overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:150;display:none}
 #overlay.show{display:block}
-#flash{position:fixed;top:30%;left:50%;transform:translate(-50%,-50%);padding:24px 48px;border-radius:16px;font-size:24px;font-weight:700;z-index:300;display:none;pointer-events:none}
+#flash{position:fixed;top:60px;left:50%;transform:translateX(-50%);padding:16px 32px;border-radius:12px;font-size:20px;font-weight:700;z-index:300;display:none;pointer-events:none}
 #flash.show{display:block}
 #flash.add{background:#34c759;color:#fff}
 #flash.take{background:#ff9500;color:#fff}
@@ -532,6 +555,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #photoStatus{color:#fff;font-size:16px;margin-bottom:16px;text-align:center}
 #photoRetry, #photoCancel{background:none;border:1px solid #555;border-radius:8px;color:#fff;padding:10px 20px;font-size:15px;cursor:pointer;margin:0 6px}
 #photoRetry{background:#007aff;border-color:#007aff}
+#tagOverlay{position:fixed;top:48px;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:250;display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px 16px 16px;overflow-y:auto}
+#tagOverlay.show{display:flex}
+#tagOverlay h3{color:#fff;font-size:20px;margin-bottom:6px;text-align:center}
+#tagOverlay .tag-sub{color:#888;font-size:14px;margin-bottom:20px;text-align:center}
+.tag-list{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:24px;max-width:400px}
+.tag-btn{padding:10px 18px;border:2px solid #555;border-radius:24px;background:#1a1a1a;color:#ccc;font-size:15px;cursor:pointer;touch-action:manipulation;transition:all .15s}
+.tag-btn.active{border-color:#34c759;background:#34c75922;color:#34c759}
+#tagActions{display:flex;gap:10px;width:100%;max-width:400px}
+#tagActions button{flex:1;padding:12px;font-size:16px;font-weight:600;border:none;border-radius:10px;cursor:pointer}
+#btnTagSave{background:#34c759;color:#fff}
+#btnTagSkip{background:#555;color:#fff}
 #banner{position:fixed;top:48px;left:0;right:0;background:#ff9500;color:#000;padding:8px 16px;font-size:13px;text-align:center;z-index:100;display:none}
 #errorOverlay{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:32px 48px;border-radius:16px;font-size:20px;font-weight:600;z-index:300;display:none;text-align:center;background:#ff3b30;color:#fff;min-width:200px;max-width:80vw;line-height:1.4}
 #errorOverlay.show{display:block}
@@ -653,6 +687,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div>
     <button id="photoRetry">&#128247; Snap Again</button>
     <button id="photoCancel">Cancel</button>
+  </div>
+</div>
+<div id="tagOverlay">
+  <h3>Tag this item</h3>
+  <p class="tag-sub">Pick categories for meal planning</p>
+  <div class="tag-list">
+    <button class="tag-btn" data-tag="Protein">Protein</button>
+    <button class="tag-btn" data-tag="Main">Main</button>
+    <button class="tag-btn" data-tag="Sauce">Sauce</button>
+    <button class="tag-btn" data-tag="Side">Side</button>
+    <button class="tag-btn" data-tag="Snack">Snack</button>
+    <button class="tag-btn" data-tag="Use Soon">Use Soon</button>
+    <button class="tag-btn" data-tag="Staple">Staple</button>
+  </div>
+  <div id="tagActions">
+    <button id="btnTagSave">Save Tags</button>
+    <button id="btnTagSkip">Skip</button>
   </div>
 </div>
 <div id="scannerLog" style="position:fixed;top:48px;left:0;right:0;background:rgba(0,0,0,.85);color:#0f0;font:12px monospace;padding:6px 10px;max-height:80px;overflow-y:auto;z-index:105;display:none"></div>
