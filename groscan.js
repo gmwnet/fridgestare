@@ -28,6 +28,7 @@ var processingPhoto = false;
 var photoSeq = 0;
 
 function scanLog(msg) {
+  if (!debug) return;
   scanLogCount++;
   var el = $('scannerLog');
   if (!el) return;
@@ -212,7 +213,7 @@ function setScanPrompt(show) {
 }
 
 // --- Photo snap scanning ---
-$('btnSnap').addEventListener('click', function() {
+if ($('btnSnap')) $('btnSnap').addEventListener('click', function() {
   if (processingPhoto) return;
   $('photoInput').click();
 });
@@ -680,6 +681,7 @@ async function lookupUpc(upc) {
     $('prodQty').textContent = data.inventory_qty > 0 ? 'In stock: ' + data.inventory_qty : '';
     $('btnAdd').disabled = !$('editName').value.trim();
     if (data.warning) { $('banner').textContent = upc + ': ' + data.warning; $('banner').style.display = 'block'; }
+    setScanPrompt(false);
     $('result').classList.add('show');
     if (!p || !p.name) $('editName').focus();
   } catch (e) {
