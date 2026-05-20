@@ -158,6 +158,17 @@ function getUpcVariants($rawUpc) {
     return array_unique($variants);
 }
 
+function formatTimestamp($utcString, $cfg) {
+    $tz = $cfg['timezone'] ?? 'UTC';
+    try {
+        $dt = new DateTime($utcString, new DateTimeZone('UTC'));
+        $dt->setTimezone(new DateTimeZone($tz));
+        return $dt->format('Y-m-d H:i:s');
+    } catch (Exception $e) {
+        return $utcString;
+    }
+}
+
 function jsonResponse($data, $code = 200) {
     http_response_code($code);
     header('Content-Type: application/json');
@@ -346,7 +357,12 @@ if ($uri === '/api/ledger' && $method === 'GET') {
          ORDER BY l.id DESC
          LIMIT 200"
     );
-    jsonResponse(['entries' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+    $entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($entries as &$e) {
+        $e['created_at'] = formatTimestamp($e['created_at'], $cfg);
+    }
+    unset($e);
+    jsonResponse(['entries' => $entries]);
 }
 
 // --- API: Search ---
@@ -373,6 +389,7 @@ if ($uri === '/api/health' && $method === 'GET') {
         'php' => PHP_VERSION,
         'sqlite' => $db->getAttribute(PDO::ATTR_SERVER_VERSION),
         'zbarimg' => $hasZbar,
+        'timezone' => $cfg['timezone'] ?? 'UTC',
     ]);
 }
 
@@ -484,6 +501,8 @@ if ($uri === '/api/auth' && $method === 'POST') {
         if (password_verify($pin, $u['pin_hash'])) { $match = $u; break; }
     }
     if (!$match) {
+        $maxAttempts = $cfg['pin_max_attempts'] ?? 3;
+        $lockoutHours = $cfg['pin_lockout_hours'] ?? 1;
         dbExecWithRetry($db,
             "INSERT INTO rate_limits (ip, attempts, locked_until) VALUES (?, 1, NULL)
              ON CONFLICT(ip) DO UPDATE SET attempts = CASE WHEN locked_until IS NULL OR locked_until < datetime('now') THEN 1 ELSE attempts + 1 END",
@@ -492,9 +511,9 @@ if ($uri === '/api/auth' && $method === 'POST') {
         $stmt = $db->prepare("SELECT attempts FROM rate_limits WHERE ip = ?");
         $stmt->execute([$ip]);
         $attempts = (int)$stmt->fetchColumn();
-        if ($attempts >= 3) {
-            dbExecWithRetry($db, "UPDATE rate_limits SET locked_until = datetime('now', '+1 hour') WHERE ip = ?", [$ip]);
-            jsonResponse(['error' => 'Too many attempts. Locked out for 1 hour.'], 429);
+        if ($attempts >= $maxAttempts) {
+            dbExecWithRetry($db, "UPDATE rate_limits SET locked_until = datetime('now', '+" . (int)$lockoutHours . " hour') WHERE ip = ?", [$ip]);
+            jsonResponse(['error' => "Too many attempts. Locked out for {$lockoutHours} hour(s)."], 429);
         }
         jsonResponse(['error' => 'PIN not recognized'], 401);
     }
@@ -740,7 +759,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 <div id="scannerLog" style="position:fixed;top:48px;left:0;right:0;background:rgba(0,0,0,.85);color:#0f0;font:12px monospace;padding:6px 10px;max-height:80px;overflow-y:auto;z-index:105;display:none"></div>
 
-<script id="groscan-config" type="application/json">{"page":"<?= $page ?>","turnstileKey":"<?= !empty($cfg['turnstile_site_key']) ? $cfg['turnstile_site_key'] : '' ?>","debug":<?= !empty($cfg['debug']) && $cfg['debug'] ? 'true' : 'false' ?>}</script>
+<script id="groscan-config" type="application/json">{"page":"<?= $page ?>","turnstileKey":"<?= !empty($cfg['turnstile_site_key']) ? $cfg['turnstile_site_key'] : '' ?>","debug":<?= !empty($cfg['debug']) && $cfg['debug'] ? 'true' : 'false' ?>,"sessionDays":<?= (int)($cfg['session_timeout_days'] ?? 30) ?>}</script>
 <script src="zbar-wasm.js"></script>
 <script src="groscan.js"></script>
 </body>

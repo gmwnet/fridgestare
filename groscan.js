@@ -3,6 +3,7 @@ var $ = function(id) { return document.getElementById(id); };
 var page = cfg.page;
 var turnstileKey = cfg.turnstileKey;
 var debug = cfg.debug || false;
+var sessionDays = cfg.sessionDays || 30;
 var turnstileToken = null;
 var currentUser = null;
 var lastUpc = null;
@@ -93,7 +94,7 @@ async function doAuth(pin) {
     var data = await res.json();
     if (!res.ok) { turnstileToken = null; if (window.turnstile) turnstile.reset(); $('pinError').textContent = data.error || 'Not recognized'; $('pinError').style.display = 'block'; return; }
     currentUser = data.user;
-    currentUser.expires_at = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    currentUser.expires_at = Date.now() + sessionDays * 24 * 60 * 60 * 1000;
     localStorage.setItem('groscan_user', JSON.stringify(currentUser));
     $('userBadge').textContent = currentUser.name;
     $('logoutIcon').style.display = 'inline';
