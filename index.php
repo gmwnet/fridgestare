@@ -453,7 +453,7 @@ if ($uri === '/api/tag' && $method === 'POST') {
         jsonResponse(['error' => 'Invalid request'], 400);
     }
     $upc = normalizeUpc($rawUpc);
-    $validTags = ['Protein', 'Main', 'Sauce', 'Side', 'Snack', 'Use Soon', 'Staple'];
+    $validTags = ['Protein', 'Main', 'Sauce', 'Side', 'Snack', 'Dessert', 'Use Soon', 'Staple'];
     $cleanTags = array_values(array_filter($tags, function($t) use ($validTags) { return in_array($t, $validTags, true); }));
     $stmt = $db->prepare(
         "INSERT INTO products (upc, name, brand, category, quantity, image_url, tags, fetched_at)
@@ -749,6 +749,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button class="tag-btn" data-tag="Sauce">Sauce</button>
     <button class="tag-btn" data-tag="Side">Side</button>
     <button class="tag-btn" data-tag="Snack">Snack</button>
+    <button class="tag-btn" data-tag="Dessert">Dessert</button>
     <button class="tag-btn" data-tag="Use Soon">Use Soon</button>
     <button class="tag-btn" data-tag="Staple">Staple</button>
   </div>
