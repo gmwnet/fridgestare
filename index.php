@@ -102,6 +102,7 @@ $db->exec("
         upc         TEXT PRIMARY KEY,
         name        TEXT,
         brand       TEXT,
+        description TEXT,
         category    TEXT,
         quantity    TEXT,
         image_url   TEXT,
@@ -136,6 +137,7 @@ try { $db->exec("ALTER TABLE ledger ADD COLUMN user_id INTEGER"); } catch (PDOEx
 try { $db->exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, pin_hash TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"); } catch (PDOException $e) {}
 try { $db->exec("CREATE TABLE IF NOT EXISTS rate_limits (ip TEXT PRIMARY KEY, attempts INTEGER DEFAULT 0, locked_until DATETIME)"); } catch (PDOException $e) {}
 try { $db->exec("ALTER TABLE products ADD COLUMN tags TEXT"); } catch (PDOException $e) {}
+try { $db->exec("ALTER TABLE products ADD COLUMN description TEXT"); } catch (PDOException $e) {}
 
 // --- Helpers ---
 function normalizeUpc($upc) {
@@ -218,6 +220,7 @@ if ($uri === '/api/lookup' && $method === 'GET') {
             'product' => [
                 'name' => $product['name'],
                 'brand' => $product['brand'],
+                'description' => $product['description'] ?? '',
                 'category' => $product['category'],
                 'quantity' => $product['quantity'],
                 'image_url' => $product['image_url'],
@@ -241,11 +244,11 @@ if ($uri === '/api/lookup' && $method === 'GET') {
         // Cache fresh data
         $productData['upc'] = $upc;
         $stmt = $db->prepare(
-            "INSERT OR REPLACE INTO products (upc, name, brand, category, quantity, image_url, tags)
-             VALUES (?, ?, ?, ?, ?, ?, COALESCE((SELECT tags FROM products WHERE upc = ?), NULL))"
+            "INSERT OR REPLACE INTO products (upc, name, brand, description, category, quantity, image_url, tags)
+             VALUES (?, ?, ?, COALESCE((SELECT description FROM products WHERE upc = ?), NULL), ?, ?, ?, COALESCE((SELECT tags FROM products WHERE upc = ?), NULL))"
         );
         $stmt->execute([
-            $upc, $productData['name'], $productData['brand'],
+            $upc, $productData['name'], $productData['brand'], $upc,
             $productData['category'], $productData['quantity'], $productData['image_url'], $upc
         ]);
         $product = $productData;
@@ -262,6 +265,7 @@ if ($uri === '/api/lookup' && $method === 'GET') {
         'product'      => $product ? [
             'name'     => $product['name'],
             'brand'    => $product['brand'],
+            'description' => $product['description'] ?? '',
             'category' => $product['category'],
             'quantity' => $product['quantity'],
             'image_url'=> $product['image_url'],
@@ -283,15 +287,16 @@ if ($uri === '/api/action' && $method === 'POST') {
     $upc = normalizeUpc($rawUpc);
     $name = $input['name'] ?? null;
     $brand = $input['brand'] ?? null;
+    $description = $input['description'] ?? null;
     $userId = $input['user_id'] ?? null;
     if ($userId !== null) $userId = (int)$userId;
-    if ($name !== null || $brand !== null) {
+    if ($name !== null || $brand !== null || $description !== null) {
         $existing = $db->prepare("SELECT COUNT(*) FROM products WHERE upc = ?");
         $existing->execute([$upc]);
         if ($existing->fetchColumn() > 0) {
-            dbExecWithRetry($db, "UPDATE products SET name = COALESCE(NULLIF(?, ''), name), brand = COALESCE(NULLIF(?, ''), brand) WHERE upc = ?", [$name, $brand, $upc]);
+            dbExecWithRetry($db, "UPDATE products SET name = COALESCE(NULLIF(?, ''), name), brand = COALESCE(NULLIF(?, ''), brand), description = COALESCE(NULLIF(?, ''), description) WHERE upc = ?", [$name, $brand, $description, $upc]);
         } else {
-            dbExecWithRetry($db, "INSERT INTO products (upc, name, brand) VALUES (?, ?, ?)", [$upc, $name, $brand]);
+            dbExecWithRetry($db, "INSERT INTO products (upc, name, brand, description) VALUES (?, ?, ?, ?)", [$upc, $name, $brand, $description]);
         }
     }
     dbExecWithRetry($db, "INSERT INTO ledger (upc, action, user_id) VALUES (?, ?, ?)", [$upc, $action, $userId]);
@@ -656,7 +661,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button id="btnSnap" title="Snap barcode photo">&#128247;</button>
     <p>Click to scan a UPC code</p>
     <span class="hint">Opens your camera app</span>
-    <button id="btnNoUpc" style="margin-top:20px;background:none;border:none;color:#007aff;font-size:15px;cursor:pointer;text-decoration:underline">No barcode? Add manually</button>
+    <button id="btnNoUpc" style="margin-top:20px;background:none;border:none;color:#fff;font-size:15px;cursor:pointer;text-decoration:underline">No barcode? Add manually</button>
   </div>
   <div id="result">
     <div style="position:relative">
@@ -664,6 +669,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
       <div id="suggestions"></div>
     </div>
     <input type="text" id="editBrand" class="edit-field" placeholder="Brand (optional)" autocomplete="off">
+    <textarea id="editDesc" class="edit-field" placeholder="Description (optional)" rows="2" style="font-size:16px;resize:none;min-height:56px"></textarea>
     <div id="prodQty" style="font-size:14px;color:#34c759;margin-bottom:8px"></div>
     <div class="actions">
       <button id="btnAdd">ADD</button>

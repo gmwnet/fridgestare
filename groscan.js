@@ -132,11 +132,11 @@ $('errorClose').addEventListener('click', function() { $('errorOverlay').classLi
 $('errorOverlay').addEventListener('click', function(e) { if (e.target === e.currentTarget) { $('errorOverlay').classList.remove('show'); } });
 
 // --- API helpers ---
-async function apiAction(upc, action, name, brand) {
+async function apiAction(upc, action, name, brand, description) {
   var res = await fetch('/api/action', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ upc: upc, action: action, name: name || null, brand: brand || null, user_id: currentUser ? currentUser.id : null })
+    body: JSON.stringify({ upc: upc, action: action, name: name || null, brand: brand || null, description: description || null, user_id: currentUser ? currentUser.id : null })
   });
   return res.json();
 }
@@ -423,6 +423,7 @@ async function lookupUpc(upc) {
     var p = data.product;
     $('editName').value = p && p.name ? p.name : '';
     $('editBrand').value = p && p.brand ? p.brand : '';
+    $('editDesc').value = p && p.description ? p.description : '';
     $('editName').placeholder = p ? 'Product name' : 'Product name (required)';
     $('prodQty').textContent = data.inventory_qty > 0 ? 'In stock: ' + data.inventory_qty : '';
     $('btnAdd').disabled = !$('editName').value.trim();
@@ -443,8 +444,9 @@ async function doAction(action) {
   var name = $('editName').value.trim();
   if (action === 'add' && !name) { showError('Enter a product name first.'); return; }
   var brand = $('editBrand').value.trim();
+  var description = $('editDesc').value.trim();
   try {
-    var data = await apiAction(lastProduct.upc, action, name, brand);
+    var data = await apiAction(lastProduct.upc, action, name, brand, description);
     if (data.success) {
       lastProduct.inventory_qty = data.new_qty;
       $('prodQty').textContent = data.new_qty > 0 ? 'In stock: ' + data.new_qty : '';
@@ -460,6 +462,7 @@ async function doAction(action) {
   }
   $('manualUpc').value = '';
   $('result').classList.remove('show');
+  $('editDesc').value = '';
   hideTagOverlay();
   lastUpc = null;
   setScanPrompt(true);
@@ -529,6 +532,7 @@ function showAddPanel(upc) {
   lastProduct = { upc: upc, product: null, inventory_qty: 0 };
   $('editName').value = '';
   $('editBrand').value = '';
+  $('editDesc').value = '';
   $('editName').placeholder = 'Product name (required)';
   $('prodQty').textContent = '';
   $('btnAdd').disabled = true;
@@ -549,6 +553,7 @@ $('btnTake').addEventListener('click', function() { doAction('take'); });
 $('btnCancel').addEventListener('click', function() {
   $('result').classList.remove('show');
   hideTagOverlay();
+  $('editDesc').value = '';
   lastUpc = null;
   setScanPrompt(true);
 });
