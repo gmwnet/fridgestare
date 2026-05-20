@@ -568,9 +568,16 @@ async function loadLedger() {
     var list = $('lgList');
     while (list.firstChild) list.removeChild(list.firstChild);
     data.entries.forEach(function(e) {
-      var name = dom('span', {'class':'lg-name'}, e.name || 'Unknown');
+      var displayName = e.name || 'Unknown';
+      var name = dom('span', {'class':'lg-name'}, displayName);
       if (e.user) name.appendChild(dom('span', {'style':'color:#007aff;font-size:12px'}, ' (' + esc(e.user) + ')'));
-      var action = dom('span', {'class':'lg-action lg-' + e.action}, e.action.toUpperCase());
+      var actionClass = e.action;
+      var actionText = e.action.toUpperCase();
+      if (['config_change','user_add','user_delete','user_update'].indexOf(e.action) >= 0) {
+        actionClass = 'admin';
+        actionText = e.action.replace(/_/g, ' ').toUpperCase();
+      }
+      var action = dom('span', {'class':'lg-action lg-' + actionClass}, actionText);
       var time = dom('span', {'class':'lg-time'}, e.created_at);
       list.appendChild(dom('div', {'class':'lg-entry'}, name, action, time));
     });
@@ -578,6 +585,121 @@ async function loadLedger() {
 }
 
 loadLedger();
+
+} else if (page === 'settings') {
+
+async function loadSettings() {
+  try {
+    var res = await fetch('/api/config');
+    var data = await res.json();
+    var form = $('settingsForm');
+    while (form.firstChild) form.removeChild(form.firstChild);
+
+    var rows = [
+      {k:'timezone',l:'Timezone',t:'text'},
+      {k:'session_timeout_days',l:'Session Timeout (days)',t:'number'},
+      {k:'pin_max_attempts',l:'PIN Max Attempts',t:'number'},
+      {k:'pin_lockout_hours',l:'PIN Lockout (hours)',t:'number'},
+      {k:'default_qty',l:'Default Quantity',t:'number'},
+      {k:'debug',l:'Debug Mode',t:'checkbox'}
+    ];
+    rows.forEach(function(r) {
+      var val = data[r.k];
+      var row = dom('div', {'class':'set-row'});
+      row.appendChild(dom('span', {'class':'set-label'}, r.l));
+      var wrap = dom('span', {'class':'set-val'});
+      if (r.t === 'checkbox') {
+        var cb = dom('input', {'type':'checkbox','id':'cfg_'+r.k});
+        cb.checked = !!val;
+        wrap.appendChild(cb);
+      } else {
+        wrap.appendChild(dom('input', {'type':'text','id':'cfg_'+r.k,'value':val !== undefined ? String(val) : ''}));
+      }
+      row.appendChild(wrap);
+      form.appendChild(row);
+    });
+    var save = dom('button', {'id':'btnSaveSettings'}, 'Save Settings');
+    save.addEventListener('click', async function() {
+      var payload = {};
+      rows.forEach(function(r) {
+        if (r.t === 'checkbox') payload[r.k] = $('cfg_' + r.k).checked;
+        else {
+          var v = $('cfg_' + r.k).value.trim();
+          payload[r.k] = r.t === 'number' ? (parseInt(v, 10) || 0) : v;
+        }
+      });
+      payload.user_id = currentUser ? currentUser.id : null;
+      try {
+        var r = await fetch('/api/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        var d = await r.json();
+        if (d.success) { showError('Settings saved.'); }
+        else showError(d.error || 'Save failed');
+      } catch (e) { showError('Network error'); }
+    });
+    form.appendChild(save);
+  } catch (e) {}
+}
+loadSettings();
+
+} else if (page === 'users') {
+
+async function loadUsers() {
+  try {
+    var res = await fetch('/api/users');
+    var data = await res.json();
+    var list = $('usersList');
+    while (list.firstChild) list.removeChild(list.firstChild);
+    if (!data.users || data.users.length === 0) {
+      list.appendChild(dom('p', {'style':'color:#888'}, 'No users found.'));
+      return;
+    }
+    data.users.forEach(function(u) {
+      var row = dom('div', {'class':'usr-row'});
+      row.appendChild(dom('span', {'class':'usr-name'}, esc(u.name)));
+      if (data.users.length > 1) {
+        var del = dom('button', {'class':'usr-del'}, 'Delete');
+        del.addEventListener('click', async function() {
+          if (!confirm('Delete user "' + u.name + '"?')) return;
+          try {
+            var r = await fetch('/api/user/' + u.id, {method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:currentUser?currentUser.id:null})});
+            var d = await r.json();
+            if (d.success) loadUsers(); else showError(d.error||'Delete failed');
+          } catch (e) { showError('Network error'); }
+        });
+        row.appendChild(del);
+      }
+      list.appendChild(row);
+    });
+  } catch (e) {}
+}
+
+$('btnAddUser').addEventListener('click', async function() {
+  var name = $('newUserName').value.trim();
+  var pin = $('newUserPin').value.trim();
+  if (!name || !/^\d{4,8}$/.test(pin)) { showError('Name and 4-8 digit PIN required'); return; }
+  try {
+    var r = await fetch('/api/user', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,pin:pin,user_id:currentUser?currentUser.id:null})});
+    var d = await r.json();
+    if (d.success) { $('newUserName').value=''; $('newUserPin').value=''; loadUsers(); }
+    else showError(d.error||'Add failed');
+  } catch (e) { showError('Network error'); }
+});
+
+$('btnChangeMyPin').addEventListener('click', async function() {
+  var newPin = $('selfNewPin').value.trim();
+  var confirmPin = $('selfConfirmPin').value.trim();
+  if (!/^\d{4,8}$/.test(newPin)) { showError('PIN must be 4-8 digits'); return; }
+  if (newPin !== confirmPin) { showError('PINs do not match'); return; }
+  if (!currentUser) { showError('Not logged in'); return; }
+  try {
+    var r = await fetch('/api/user/change-pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:currentUser.id,new_pin:newPin})});
+    var d = await r.json();
+    if (d.success) { $('selfNewPin').value=''; $('selfConfirmPin').value=''; showError('PIN changed.'); }
+    else showError(d.error||'Change failed');
+  } catch (e) { showError('Network error'); }
+});
+
+loadUsers();
 
 } else {
 

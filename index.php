@@ -133,9 +133,17 @@ $db->exec("
     );
 ");
 try { $db->exec("ALTER TABLE ledger ADD COLUMN user_id INTEGER"); } catch (PDOException $e) {}
+try { $db->exec("ALTER TABLE ledger ADD COLUMN details TEXT"); } catch (PDOException $e) {}
 try { $db->exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, pin_hash TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"); } catch (PDOException $e) {}
 try { $db->exec("CREATE TABLE IF NOT EXISTS rate_limits (ip TEXT PRIMARY KEY, attempts INTEGER DEFAULT 0, locked_until DATETIME)"); } catch (PDOException $e) {}
 try { $db->exec("ALTER TABLE products ADD COLUMN tags TEXT"); } catch (PDOException $e) {}
+
+// Insert default user if table is empty
+$countStmt = $db->query("SELECT COUNT(*) FROM users");
+if ($countStmt && (int)$countStmt->fetchColumn() === 0) {
+    $defaultHash = password_hash('1234', PASSWORD_DEFAULT);
+    $db->exec("INSERT INTO users (name, pin_hash) VALUES ('default user', '$defaultHash')");
+}
 
 // --- Helpers ---
 function normalizeUpc($upc) {
@@ -167,6 +175,10 @@ function formatTimestamp($utcString, $cfg) {
     } catch (Exception $e) {
         return $utcString;
     }
+}
+
+function logAdminAction($db, $action, $details, $userId) {
+    dbExecWithRetry($db, "INSERT INTO ledger (upc, action, user_id, details) VALUES ('', ?, ?, ?)", [$action, $userId, $details]);
 }
 
 function jsonResponse($data, $code = 200) {
@@ -350,7 +362,7 @@ if ($uri === '/api/inventory' && $method === 'GET') {
 // --- API: Ledger ---
 if ($uri === '/api/ledger' && $method === 'GET') {
     $stmt = $db->query(
-        "SELECT l.id, l.upc, COALESCE(p.name, 'Unknown') AS name, l.action, l.created_at, u.name AS user
+        "SELECT l.id, l.upc, COALESCE(p.name, l.details, 'Unknown') AS name, l.action, l.created_at, l.details, u.name AS user
          FROM ledger l
          LEFT JOIN products p ON l.upc = p.upc
          LEFT JOIN users u ON l.user_id = u.id
@@ -464,6 +476,147 @@ if ($uri === '/api/tag' && $method === 'POST') {
     jsonResponse(['success' => true, 'tags' => $cleanTags]);
 }
 
+// --- API: Config ---
+if ($uri === '/api/config' && $method === 'GET') {
+    jsonResponse($cfg);
+}
+if ($uri === '/api/config' && $method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) jsonResponse(['error' => 'Invalid request'], 400);
+    $userId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+
+    $allowed = ['upcitemdb_key','turnstile_site_key','turnstile_secret_key',
+                'timezone','session_timeout_days','pin_max_attempts',
+                'pin_lockout_hours','default_qty','debug'];
+    $newCfg = $cfg;
+    foreach ($allowed as $k) {
+        if (array_key_exists($k, $input)) $newCfg[$k] = $input[$k];
+    }
+    $export = var_export($newCfg, true);
+    file_put_contents(__DIR__ . '/config.php', "<?php\nreturn " . $export . ";\n");
+
+    $changes = [];
+    foreach ($allowed as $k) {
+        if (array_key_exists($k, $input)) $changes[] = "$k = " . json_encode($input[$k]);
+    }
+    if ($changes) {
+        logAdminAction($db, 'config_change', 'Changed: ' . implode(', ', $changes), $userId);
+    }
+    jsonResponse(['success' => true]);
+}
+
+// --- API: Users ---
+function pinExists($db, $pin) {
+    $stmt = $db->query("SELECT pin_hash FROM users");
+    foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $hash) {
+        if (password_verify($pin, $hash)) return true;
+    }
+    return false;
+}
+
+if ($uri === '/api/users' && $method === 'GET') {
+    $stmt = $db->query("SELECT id, name, created_at FROM users ORDER BY name");
+    jsonResponse(['users' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+}
+
+if ($uri === '/api/user' && $method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $name = trim($input['name'] ?? '');
+    $pin = $input['pin'] ?? '';
+    $userId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+    if (!$name || !preg_match('/^\d{4,8}$/', $pin)) {
+        jsonResponse(['error' => 'Name and 4-8 digit PIN required'], 400);
+    }
+    if (pinExists($db, $pin)) {
+        jsonResponse(['error' => 'That PIN is already in use. Choose a different one.'], 409);
+    }
+    $hash = password_hash($pin, PASSWORD_DEFAULT);
+    try {
+        dbExecWithRetry($db, "INSERT INTO users (name, pin_hash) VALUES (?, ?)", [$name, $hash]);
+        logAdminAction($db, 'user_add', "Added user '$name'", $userId);
+        jsonResponse(['success' => true]);
+    } catch (PDOException $e) {
+        jsonResponse(['error' => 'Name already exists'], 409);
+    }
+}
+
+if (preg_match('#^/api/user/(\d+)$#', $uri, $m) && $method === 'POST') {
+    $id = (int)$m[1];
+    $input = json_decode(file_get_contents('php://input'), true);
+    $name = isset($input['name']) ? trim($input['name']) : null;
+    $pin = $input['pin'] ?? null;
+    $userId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+
+    $updates = [];
+    $params = [];
+    if ($name !== null && $name !== '') {
+        $updates[] = "name = ?";
+        $params[] = $name;
+    }
+    if ($pin !== null) {
+        if (!preg_match('/^\d{4,8}$/', $pin)) {
+            jsonResponse(['error' => 'PIN must be 4-8 digits'], 400);
+        }
+        if (pinExists($db, $pin)) {
+            jsonResponse(['error' => 'That PIN is already in use. Choose a different one.'], 409);
+        }
+        $updates[] = "pin_hash = ?";
+        $params[] = password_hash($pin, PASSWORD_DEFAULT);
+    }
+    if (empty($updates)) jsonResponse(['error' => 'Nothing to update'], 400);
+    $params[] = $id;
+    dbExecWithRetry($db, "UPDATE users SET " . implode(', ', $updates) . " WHERE id = ?", $params);
+
+    $stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+    $stmt->execute([$id]);
+    $oldName = $stmt->fetchColumn();
+    if ($pin !== null) {
+        logAdminAction($db, 'user_update', "Changed PIN for '$oldName'", $userId);
+    }
+    if ($name !== null) {
+        logAdminAction($db, 'user_update', "Renamed user to '$name'", $userId);
+    }
+    jsonResponse(['success' => true]);
+}
+
+if (preg_match('#^/api/user/(\d+)$#', $uri, $m) && $method === 'DELETE') {
+    $id = (int)$m[1];
+    $input = json_decode(file_get_contents('php://input'), true);
+    $userId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+
+    $stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+    $stmt->execute([$id]);
+    $name = $stmt->fetchColumn();
+    if (!$name) jsonResponse(['error' => 'User not found'], 404);
+
+    $count = (int)$db->query("SELECT COUNT(*) FROM users")->fetchColumn();
+    if ($count <= 1) jsonResponse(['error' => 'Cannot delete the last user'], 400);
+
+    dbExecWithRetry($db, "DELETE FROM users WHERE id = ?", [$id]);
+    logAdminAction($db, 'user_delete', "Deleted user '$name'", $userId);
+    jsonResponse(['success' => true]);
+}
+
+if ($uri === '/api/user/change-pin' && $method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $id = isset($input['id']) ? (int)$input['id'] : null;
+    $newPin = $input['new_pin'] ?? '';
+    if (!$id || !preg_match('/^\d{4,8}$/', $newPin)) {
+        jsonResponse(['error' => 'User ID and 4-8 digit new PIN required'], 400);
+    }
+    if (pinExists($db, $newPin)) {
+        jsonResponse(['error' => 'That PIN is already in use. Choose a different one.'], 409);
+    }
+    $stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
+    $stmt->execute([$id]);
+    $name = $stmt->fetchColumn();
+    if (!$name) jsonResponse(['error' => 'User not found'], 404);
+
+    dbExecWithRetry($db, "UPDATE users SET pin_hash = ? WHERE id = ?", [password_hash($newPin, PASSWORD_DEFAULT), $id]);
+    logAdminAction($db, 'user_update', "Changed PIN for '$name'", $id);
+    jsonResponse(['success' => true]);
+}
+
 // --- API: Auth ---
 if ($uri === '/api/auth' && $method === 'POST') {
     $ip = clientIp();
@@ -525,10 +678,14 @@ if ($uri === '/api/auth' && $method === 'POST') {
 $page = 'scan';
 if ($uri === '/inventory') $page = 'inventory';
 if ($uri === '/ledger') $page = 'ledger';
+if ($uri === '/settings') $page = 'settings';
+if ($uri === '/users') $page = 'users';
 $navItems = [
     '/'         => ['label' => 'Scanner', 'icon' => '📷'],
     '/inventory' => ['label' => 'Inventory', 'icon' => '📋'],
     '/ledger'    => ['label' => 'Ledger', 'icon' => '📜'],
+    '/settings'  => ['label' => 'Settings', 'icon' => '⚙️'],
+    '/users'     => ['label' => 'Users', 'icon' => '👤'],
 ];
 ?><!DOCTYPE html>
 <html lang="en">
@@ -635,7 +792,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .lg-action{font-weight:600;padding:2px 8px;border-radius:4px;font-size:12px}
 .lg-add{background:#34c75933;color:#34c759}
 .lg-take{background:#ff3b3033;color:#ff3b30}
+.lg-admin{background:#007aff33;color:#007aff}
 .lg-time{color:#666;font-size:12px;white-space:nowrap}
+#settingsPage,#usersPage{flex:1;overflow-y:auto;padding:12px 16px 8px}
+#settingsPage h2,#usersPage h2{font-size:18px;margin-bottom:12px}
+.set-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #333}
+.set-row:last-child{border-bottom:none}
+.set-label{flex:1;font-size:15px}
+.set-val{min-width:60px;text-align:right}
+.set-val input,.set-val select{width:100%;padding:8px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff}
+.usr-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #333}
+.usr-row:last-child{border-bottom:none}
+.usr-name{flex:1;font-size:15px}
+.usr-del{padding:6px 12px;font-size:13px;border:none;border-radius:6px;background:#ff3b30;color:#fff;cursor:pointer}
+#btnSaveSettings{padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer;margin-top:12px}
 </style>
 </head>
 <body>
@@ -661,6 +831,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <a href="/" class="<?= $page === 'scan' ? 'active' : '' ?>">Scanner</a>
   <a href="/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">Inventory</a>
   <a href="/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">Ledger</a>
+  <a href="/settings" class="<?= $page === 'settings' ? 'active' : '' ?>">Settings</a>
+  <a href="/users" class="<?= $page === 'users' ? 'active' : '' ?>">Users</a>
   <a href="#" id="menuSwitchUser" style="border-top:1px solid #333;margin-top:8px">&#x21C4; Switch User</a>
 </div>
 
@@ -689,6 +861,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="lgPage">
   <h2>Ledger</h2>
   <div id="lgList"></div>
+</div>
+
+<?php elseif ($page === 'settings'): ?>
+
+<div id="settingsPage">
+  <h2>Settings</h2>
+  <div id="settingsForm"></div>
+</div>
+
+<?php elseif ($page === 'users'): ?>
+
+<div id="usersPage">
+  <h2>Users</h2>
+  <div id="usersList"></div>
+  <div id="usersForm" style="margin-top:20px;padding-top:16px;border-top:1px solid #333">
+    <h3 style="font-size:16px;margin-bottom:12px">Add User</h3>
+    <input type="text" id="newUserName" class="edit-field" placeholder="Name" style="margin-bottom:8px">
+    <input type="tel" id="newUserPin" class="edit-field" placeholder="PIN (4-8 digits)" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:12px">
+    <button id="btnAddUser" style="padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer">Add User</button>
+  </div>
+  <div id="changePinForm" style="margin-top:20px;padding-top:16px;border-top:1px solid #333">
+    <h3 style="font-size:16px;margin-bottom:12px">Change My PIN</h3>
+    <input type="tel" id="selfNewPin" class="edit-field" placeholder="New PIN (4-8 digits)" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:8px">
+    <input type="tel" id="selfConfirmPin" class="edit-field" placeholder="Confirm new PIN" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:12px">
+    <button id="btnChangeMyPin" style="padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;cursor:pointer">Change PIN</button>
+  </div>
 </div>
 
 <?php else: ?>
