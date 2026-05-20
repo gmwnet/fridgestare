@@ -655,6 +655,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button id="btnSnap" title="Snap barcode photo">&#128247;</button>
     <p>Click to scan a UPC code</p>
     <span class="hint">Opens your camera app</span>
+    <button id="btnNoUpc" style="margin-top:20px;background:none;border:none;color:#007aff;font-size:15px;cursor:pointer;text-decoration:underline">No barcode? Add manually</button>
   </div>
   <div id="result">
     <div style="position:relative">

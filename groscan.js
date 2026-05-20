@@ -519,6 +519,30 @@ loadLedger();
 } else {
 
 // --- Scanner page initializations ---
+function generateInternalUpc() {
+  return '2' + String(Date.now()).slice(-12);
+}
+
+function showAddPanel(upc) {
+  lookupId++;
+  lastUpc = upc;
+  lastProduct = { upc: upc, product: null, inventory_qty: 0 };
+  $('editName').value = '';
+  $('editBrand').value = '';
+  $('editName').placeholder = 'Product name (required)';
+  $('prodQty').textContent = '';
+  $('btnAdd').disabled = true;
+  $('banner').style.display = 'none';
+  setScanPrompt(false);
+  showTagOverlay(upc, 'Unknown');
+  $('result').classList.add('show');
+  $('editName').focus();
+}
+
+if ($('btnNoUpc')) $('btnNoUpc').addEventListener('click', function() {
+  showAddPanel(generateInternalUpc());
+});
+
 $('btnAdd').addEventListener('click', function() { doAction('add'); });
 $('btnTake').addEventListener('click', function() { doAction('take'); });
 
