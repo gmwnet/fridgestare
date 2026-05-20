@@ -812,7 +812,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .set-row:last-child{border-bottom:none}
 .set-label{flex:1;font-size:15px}
 .set-val{min-width:140px;max-width:50%;text-align:right}
-.set-val input,.set-val select{width:100%;padding:10px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;-webkit-appearance:none;appearance:none}
+.set-val input,.set-val select{width:100%;padding:10px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff}
 .usr-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #333}
 .usr-row:last-child{border-bottom:none}
 .usr-name{flex:1;font-size:15px}
@@ -926,7 +926,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <?php endif; ?>
-
+<?php if ($page === 'settings' || $page === 'users'): ?><style>#manual{display:none}</style><?php endif; ?>
 <div id="manual">
   <div id="manualInputWrap">
     <input type="text" id="manualUpc" inputmode="numeric" pattern="[0-9]*" placeholder="Enter UPC..." maxlength="14">
