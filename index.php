@@ -1090,6 +1090,6 @@ foreach ($qtys as $v) {
 
 <script id="groscan-config" type="application/json">{"page":"<?= $page ?>","turnstileKey":"<?= !empty($cfg['turnstile_site_key']) ? $cfg['turnstile_site_key'] : '' ?>","debug":<?= !empty($cfg['debug']) && $cfg['debug'] ? 'true' : 'false' ?>,"sessionDays":<?= (int)($cfg['session_timeout_days'] ?? 30) ?>}</script>
 <?php if ($page === 'scan'): ?><script src="zbar-wasm.js"></script><?php endif; ?>
-<script src="groscan.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
