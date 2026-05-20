@@ -23,18 +23,20 @@ document.addEventListener('visibilitychange', function() {
   if (document.hidden) { hiddenAt = Date.now(); return; }
   var away = Date.now() - hiddenAt;
   if (away > 30000) { location.reload(); return; }
+  if (page !== 'scan') return;
   if (processingPhoto) {
     photoSeq++;
-    $('photoOverlay').classList.remove('show');
+    var po = $('photoOverlay'); if (po) po.classList.remove('show');
     resetPhotoState();
   }
   if (!zbarReady) initZbar();
 });
 window.addEventListener('pageshow', function(e) {
   if (!e.persisted) return;
+  if (page !== 'scan') return;
   if (processingPhoto) {
     photoSeq++;
-    $('photoOverlay').classList.remove('show');
+    var po = $('photoOverlay'); if (po) po.classList.remove('show');
     resetPhotoState();
   }
   if (!zbarReady) initZbar();
@@ -343,7 +345,7 @@ async function processPhotoFile(file) {
 
 function resetPhotoState() {
   processingPhoto = false;
-  $('btnSnap').disabled = false;
+  var btn = $('btnSnap'); if (btn) btn.disabled = false;
 }
 
 async function uploadPhotoFile(file, mySeq) {
@@ -482,13 +484,6 @@ $('manualName').addEventListener('input', function() {
   }, 200);
 });
 document.addEventListener('click', function(e) { if (!e.target.closest('#manualName')) $('manualSuggestions').style.display = 'none'; });
-
-// --- Detection feedback ---
-function detectionFlash() {
-  var r = $('reader');
-  r.style.boxShadow = 'inset 0 0 80px rgba(0,255,0,.6)';
-  setTimeout(function() { r.style.boxShadow = ''; }, 300);
-}
 
 function beep() {
   try {

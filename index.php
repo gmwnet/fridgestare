@@ -888,7 +888,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <h2>Who's this?</h2>
   <p>Enter your PIN</p>
   <input type="tel" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
-  <?php if (!empty($cfg['turnstile_site_key'])): ?><div id="turnstileWidget" class="cf-turnstile" data-sitekey="<?= $cfg['turnstile_site_key'] ?>" data-callback="onTurnstileSuccess" style="margin:12px 0"></div><?php endif; ?>
+  <?php if (!empty($cfg['turnstile_site_key'])): ?><div id="turnstileWidget" class="cf-turnstile" data-sitekey="<?= htmlspecialchars($cfg['turnstile_site_key'] ?? '', ENT_QUOTES) ?>" data-callback="onTurnstileSuccess" style="margin:12px 0"></div><?php endif; ?>
   <div class="pinBtns"><button id="pinSubmit" style="background:#007aff;color:#fff">Log On</button></div>
   <div id="pinError">PIN not recognized</div>
 </div></div>
@@ -1089,7 +1089,12 @@ foreach ($qtys as $v) {
 <div id="scannerLog" style="position:fixed;top:48px;left:0;right:0;background:rgba(0,0,0,.85);color:#0f0;font:12px monospace;padding:6px 10px;max-height:80px;overflow-y:auto;z-index:105;display:none"></div>
 <?php endif; ?>
 
-<script id="groscan-config" type="application/json">{"page":"<?= $page ?>","turnstileKey":"<?= !empty($cfg['turnstile_site_key']) ? $cfg['turnstile_site_key'] : '' ?>","debug":<?= !empty($cfg['debug']) && $cfg['debug'] ? 'true' : 'false' ?>,"sessionDays":<?= (int)($cfg['session_timeout_days'] ?? 30) ?>}</script>
+<script id="groscan-config" type="application/json"><?= json_encode([
+    'page' => $page,
+    'turnstileKey' => $cfg['turnstile_site_key'] ?? '',
+    'debug' => !empty($cfg['debug']) && $cfg['debug'],
+    'sessionDays' => (int)($cfg['session_timeout_days'] ?? 30),
+]) ?></script>
 <?php if ($page === 'scan'): ?><script src="zbar-wasm.js"></script><?php endif; ?>
 <script src="app.js"></script>
 </body>
