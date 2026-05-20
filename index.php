@@ -787,6 +787,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .tag-list{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:24px;max-width:400px}
 .tag-btn{padding:10px 18px;border:2px solid #555;border-radius:24px;background:#1a1a1a;color:#ccc;font-size:15px;cursor:pointer;touch-action:manipulation;transition:all .15s}
 .tag-btn.active{border-color:#34c759;background:#34c75922;color:#34c759}
+.result-tags .tag-btn{padding:4px 10px;font-size:12px}
 #tagActions{display:flex;gap:10px;width:100%;max-width:400px}
 #tagActions button{flex:1;padding:12px;font-size:16px;font-weight:600;border:none;border-radius:10px;cursor:pointer}
 #btnTagSave{background:#34c759;color:#fff}
@@ -1015,6 +1016,7 @@ foreach ($qtys as $v) {
       <div id="suggestions"></div>
     </div>
     <input type="text" id="editBrand" class="edit-field" placeholder="Brand (optional)" autocomplete="off">
+    <div id="resultTags" class="result-tags" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
     <div id="prodQty" style="font-size:14px;color:#34c759;margin-bottom:8px"></div>
     <div class="actions">
       <button id="btnAdd">ADD</button>

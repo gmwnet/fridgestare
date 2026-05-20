@@ -496,6 +496,25 @@ async function lookupUpc(upc) {
     $('prodQty').textContent = data.inventory_qty > 0 ? 'In stock: ' + data.inventory_qty : '';
     $('btnAdd').disabled = !$('editName').value.trim();
     if (data.warning) { $('banner').textContent = upc + ': ' + data.warning; $('banner').style.display = 'block'; }
+
+    selectedTags = (p && p.tags) ? p.tags.slice() : [];
+    var tagsContainer = $('resultTags');
+    while (tagsContainer.firstChild) tagsContainer.removeChild(tagsContainer.firstChild);
+    ['Protein','Main','Sauce','Side','Snack','Dessert','Use Soon','Staple'].forEach(function(tag) {
+      var btn = dom('button', {'class':'tag-btn', 'data-tag':tag}, tag);
+      if (selectedTags.includes(tag)) btn.classList.add('active');
+      btn.addEventListener('click', function() {
+        if (selectedTags.includes(tag)) {
+          selectedTags = selectedTags.filter(function(t) { return t !== tag; });
+          btn.classList.remove('active');
+        } else {
+          selectedTags.push(tag);
+          btn.classList.add('active');
+        }
+      });
+      tagsContainer.appendChild(btn);
+    });
+
     setScanPrompt(false);
     $('result').classList.add('show');
     if (!p || !p.name) $('editName').focus();
@@ -514,6 +533,11 @@ async function doAction(action) {
     if (data.success) {
       lastProduct.inventory_qty = data.new_qty;
       $('prodQty').textContent = data.new_qty > 0 ? 'In stock: ' + data.new_qty : '';
+      await fetch('/api/tag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ upc: lastProduct.upc, tags: selectedTags })
+      });
       var f = $('flash');
       f.textContent = action === 'add' ? 'Added!' : 'Taken!';
       f.className = 'show ' + action;
@@ -551,6 +575,8 @@ $('btnTake').addEventListener('click', function() { doAction('take'); });
 $('btnCancel').addEventListener('click', function() {
   $('result').classList.remove('show');
   lastUpc = null;
+  lastProduct = null;
+  selectedTags = [];
   setScanPrompt(true);
 });
 
