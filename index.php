@@ -654,6 +654,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <div id="sideMenu">
+  <div style="display:flex;align-items:center;gap:10px;padding:16px 20px 12px;border-bottom:1px solid #333;margin-bottom:8px">
+    <img src="/favicon-32x32.png" alt="" style="width:28px;height:28px;border-radius:4px">
+    <span style="font-size:18px;font-weight:600;color:#fff">Groventry</span>
+  </div>
   <a href="/" class="<?= $page === 'scan' ? 'active' : '' ?>">Scanner</a>
   <a href="/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">Inventory</a>
   <a href="/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">Ledger</a>
