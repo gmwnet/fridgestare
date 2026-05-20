@@ -492,11 +492,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #flash.show{display:block}
 #flash.add{background:#34c759;color:#fff}
 #flash.take{background:#ff9500;color:#fff}
-#scanner{flex:1;position:relative;background:#111;overflow:hidden}
-#reader{width:100%;height:100%}
-#reader video{width:100%;height:100%;object-fit:cover}
-#reader canvas{position:absolute;top:0;left:0;width:100%;height:100%}
-#scanPrompt{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10}
+#scanner{flex:1;position:relative;background:#111;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#scanPrompt{display:flex;flex-direction:column;align-items:center;justify-content:center}
 #scanPrompt p{color:#fff;font-size:18px;font-weight:500;margin-top:16px}
 #scanPrompt .hint{color:#888;font-size:14px;margin-top:6px}
 #result{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);padding:10px 12px;transform:translateY(100%);transition:transform .3s}
@@ -613,8 +610,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <?php else: ?>
 
 <div id="scanner">
-  <div id="reader"></div>
-  <button id="btnPause" style="position:absolute;top:8px;right:8px;z-index:50;background:rgba(0,0,0,.6);border:none;border-radius:50%;color:#fff;font-size:20px;width:40px;height:40px;cursor:pointer;display:none;align-items:center;justify-content:center">⏸</button>
   <div id="scanPrompt">
     <button id="btnSnap" title="Snap barcode photo">&#128247;</button>
     <p>Click to scan a UPC code</p>

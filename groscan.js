@@ -6,24 +6,11 @@ var debug = cfg.debug || false;
 var turnstileToken = null;
 var currentUser = null;
 var lastUpc = null;
-var lastUpcCount = 0;
 var lastProduct = null;
-var scanning = true;
-var scannerStarting = false;
-var detectorTimer = null;
-var cameraStream = null;
-var overlayCanvas = null;
-var scanCanvas = null;
-var scanCtx = null;
 var lookupId = 0;
 var suggestTimer = null;
 var zbarReady = false;
 var scanLogCount = 0;
-var frameCount = 0;
-var zbarScanner = null;
-var imageCapture = null;
-var photoDecodePending = false;
-var lastPhotoAttempt = 0;
 var processingPhoto = false;
 var photoSeq = 0;
 
@@ -50,24 +37,8 @@ function initZbar() {
   });
 
   zbarWasm.getInstance().then(function() {
-    scanLog('ZBar WASM loaded, creating scanner');
-    return zbarWasm.ZBarScanner.create();
-  }).then(function(scanner) {
-    scanner.enableCache(true);
-    scanner.setConfig(zbarWasm.ZBarSymbolType.ZBAR_NONE, zbarWasm.ZBarConfigType.ZBAR_CFG_ENABLE, 0);
-    scanner.setConfig(zbarWasm.ZBarSymbolType.ZBAR_EAN13, zbarWasm.ZBarConfigType.ZBAR_CFG_ENABLE, 1);
-    scanner.setConfig(zbarWasm.ZBarSymbolType.ZBAR_UPCA, zbarWasm.ZBarConfigType.ZBAR_CFG_ENABLE, 1);
-    scanner.setConfig(zbarWasm.ZBarSymbolType.ZBAR_EAN8, zbarWasm.ZBarConfigType.ZBAR_CFG_ENABLE, 1);
-    scanner.setConfig(zbarWasm.ZBarSymbolType.ZBAR_UPCE, zbarWasm.ZBarConfigType.ZBAR_CFG_ENABLE, 1);
-    scanner.setConfig(zbarWasm.ZBarSymbolType.ZBAR_CODE128, zbarWasm.ZBarConfigType.ZBAR_CFG_ENABLE, 1);
-    scanner.setConfig(zbarWasm.ZBarSymbolType.ZBAR_CODE39, zbarWasm.ZBarConfigType.ZBAR_CFG_ENABLE, 1);
-    scanner.setConfig(zbarWasm.ZBarSymbolType.ZBAR_I25, zbarWasm.ZBarConfigType.ZBAR_CFG_ENABLE, 1);
-    scanner.setConfig(zbarWasm.ZBarSymbolType.ZBAR_NONE, zbarWasm.ZBarConfigType.ZBAR_CFG_UNCERTAINTY, 0);
-    scanner.setConfig(zbarWasm.ZBarSymbolType.ZBAR_NONE, zbarWasm.ZBarConfigType.ZBAR_CFG_X_DENSITY, 5);
-    scanner.setConfig(zbarWasm.ZBarSymbolType.ZBAR_NONE, zbarWasm.ZBarConfigType.ZBAR_CFG_Y_DENSITY, 5);
-    zbarScanner = scanner;
     zbarReady = true;
-    scanLog('ZBar scanner ready');
+    scanLog('ZBar WASM ready');
   }).catch(function(err) {
     scanLog('ZBar init error: ' + (err.message || err));
   });
@@ -103,13 +74,10 @@ function loadUser() {
     $('userBadge').textContent = currentUser.name;
     $('logoutIcon').style.display = 'inline';
     $('pinOverlay').style.display = 'none';
-    if (page === 'scan' && !cameraStream) { scanning = false; setScanPrompt(true); }
+    if (page === 'scan') setScanPrompt(true);
   } else {
     $('userBadge').textContent = '';
     $('logoutIcon').style.display = 'none';
-    if (cameraStream) { scanLog('User logged out, stopping scanner'); stopScanner(); }
-    var r = $('reader'); if (r) r.style.opacity = '0';
-    scanning = false;
     $('pinOverlay').style.display = 'flex';
     $('pinInput').focus();
     turnstileToken = null; if (window.turnstile) turnstile.reset();
@@ -129,7 +97,7 @@ async function doAuth(pin) {
     $('logoutIcon').style.display = 'inline';
     $('pinOverlay').style.display = 'none';
     turnstileToken = null;
-    if (page === 'scan') { scanning = false; setScanPrompt(true); }
+    if (page === 'scan') setScanPrompt(true);
   } catch (e) { $('pinError').textContent = 'Network error'; $('pinError').style.display = 'block'; }
 }
 $('pinSubmit').addEventListener('click', function() { doAuth($('pinInput').value.trim()); });
@@ -158,8 +126,8 @@ function showError(msg) {
   $('errorMsg').textContent = msg;
   $('errorOverlay').classList.add('show');
 }
-$('errorClose').addEventListener('click', function() { $('errorOverlay').classList.remove('show'); if (page === 'scan' && scanning) setTimeout(function() { startScanner(); }, 300); });
-$('errorOverlay').addEventListener('click', function(e) { if (e.target === e.currentTarget) { $('errorOverlay').classList.remove('show'); if (page === 'scan' && scanning) setTimeout(function() { startScanner(); }, 300); } });
+$('errorClose').addEventListener('click', function() { $('errorOverlay').classList.remove('show'); });
+$('errorOverlay').addEventListener('click', function(e) { if (e.target === e.currentTarget) { $('errorOverlay').classList.remove('show'); } });
 
 // --- API helpers ---
 async function apiAction(upc, action, name, brand) {
@@ -223,7 +191,6 @@ $('photoInput').addEventListener('change', function(e) {
   if (!file) return;
   processingPhoto = true;
   setScanPrompt(false);
-  stopScanner();
   processPhotoFile(file);
 });
 $('photoRetry').addEventListener('click', function() {
@@ -304,7 +271,7 @@ async function processPhotoFile(file) {
     var gray = extractGrayBuffer(info.canvas, info.width, info.height);
     var code = null;
 
-    if (zbarReady && zbarScanner) {
+    if (zbarReady) {
       try {
         var symbols = await zbarWasm.scanGrayBuffer(gray.buffer, info.width, info.height);
         if (mySeq !== photoSeq) return;
@@ -394,273 +361,7 @@ function beep() {
   } catch (e) {}
 }
 
-// --- Scanner functions ---
-function startScanner() {
-  if (scannerStarting) { scanLog('startScanner: already starting, skip'); return; }
-  scannerStarting = true;
-  scanLog('startScanner() called');
-  $('btnSnap').disabled = false;
-  stopScanner();
-
-  if (typeof zbarWasm === 'undefined') {
-    scannerStarting = false;
-    scanLog('zbarWasm undefined');
-    $('reader').style.opacity = '0';
-    showError('Scanner library not loaded. Use manual entry below.');
-    return;
-  }
-
-  var doStart = function() {
-    scanLog('Starting camera...');
-    setScanPrompt(false);
-    var bp = $('btnPause'); if (bp) bp.style.display = 'flex';
-    $('reader').style.opacity = '1';
-    scanCanvas = document.createElement('canvas');
-    scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
-
-    navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false
-    }).then(function(stream) {
-      scanLog('Camera stream received');
-      cameraStream = stream;
-      var track = stream.getVideoTracks()[0];
-      if (track && window.ImageCapture) {
-        imageCapture = new ImageCapture(track);
-        scanLog('ImageCapture ready');
-      } else {
-        scanLog('ImageCapture N/A');
-      }
-      var video = document.createElement('video');
-      video.setAttribute('autoplay', '');
-      video.setAttribute('playsinline', '');
-      video.setAttribute('muted', '');
-      video.srcObject = stream;
-      video.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover';
-
-      var r = $('reader');
-      while (r.firstChild) r.removeChild(r.firstChild);
-      r.appendChild(video);
-
-      overlayCanvas = document.createElement('canvas');
-      overlayCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2';
-      r.appendChild(overlayCanvas);
-
-      video.addEventListener('loadedmetadata', function() {
-        scanLog('Video ' + (video.videoWidth||'?') + 'x' + (video.videoHeight||'?'));
-        video.play();
-        scanCanvas.width = video.videoWidth || 640;
-        scanCanvas.height = video.videoHeight || 480;
-        scanLog('Detect loop starting');
-        scannerStarting = false;
-        detectLoop();
-      });
-    }).catch(function(err) {
-      scannerStarting = false;
-      scanLog('Camera error: ' + (err.message || err));
-      $('reader').style.opacity = '0';
-      showError('Camera unavailable. Use manual entry below.');
-    });
-
-    if ($('btnPause')) $('btnPause').textContent = '\u23F8';
-  };
-
-  if (!zbarReady) {
-    scanLog('Waiting for ZBar...');
-    zbarWasm.getInstance().then(function() {
-      zbarReady = true;
-      scanLog('ZBar ready, starting');
-      doStart();
-    }).catch(function(err) {
-      scannerStarting = false;
-      scanLog('ZBar failed: ' + (err.message || err));
-      showError('Scanner init failed: ' + (err.message || err));
-    });
-  } else {
-    doStart();
-  }
-}
-
-function detectLoop() {
-  if (!scanning) return;
-
-  var video = $('reader').querySelector('video');
-  if (!video || video.readyState < 2) {
-    detectorTimer = setTimeout(detectLoop, 150);
-    return;
-  }
-
-  var vw = scanCanvas.width;
-  var vh = scanCanvas.height;
-
-  if (!vw || !vh) {
-    detectorTimer = setTimeout(detectLoop, 150);
-    return;
-  }
-
-  try {
-    scanCtx.drawImage(video, 0, 0, vw, vh);
-  } catch (e) {
-    detectorTimer = setTimeout(detectLoop, 150);
-    return;
-  }
-
-  var imageData = scanCtx.getImageData(0, 0, vw, vh);
-  frameCount++;
-
-  if (overlayCanvas) {
-    var r = $('reader');
-    var rw = r.clientWidth;
-    var rh = r.clientHeight;
-    if (rw && rh) {
-      overlayCanvas.width = rw;
-      overlayCanvas.height = rh;
-      overlayCanvas.getContext('2d').clearRect(0, 0, rw, rh);
-    }
-  }
-
-  if (frameCount <= 10) {
-    var bright = 0, count = 0;
-    for (var p = 0; p < imageData.data.length; p += 16) { bright += imageData.data[p]; count++; }
-    scanLog('Frame ' + frameCount + ': ' + vw + 'x' + vh + ' avg=' + (bright/count).toFixed(0) + ' => zbar=' + (!!zbarScanner));
-  }
-
-  try {
-    var gray = new Uint8Array(vw * vh);
-    var rgba = imageData.data;
-    for (var g = 0; g < gray.length; g++) {
-      var p = g * 4;
-      gray[g] = (19595 * rgba[p] + 38469 * rgba[p+1] + 7472 * rgba[p+2]) >> 16;
-    }
-
-    var min = 255, max = 0;
-    for (var g = 0; g < gray.length; g++) { if (gray[g] < min) min = gray[g]; if (gray[g] > max) max = gray[g]; }
-    var range = max - min;
-    if (range > 10) { for (var g = 0; g < gray.length; g++) { gray[g] = ((gray[g] - min) * 255 / range) | 0; } }
-
-    if (!zbarScanner) {
-      if (scanning) detectorTimer = setTimeout(detectLoop, 200);
-      return;
-    }
-
-    var fallbackScan = function() {
-      zbarWasm.scanGrayBuffer(gray.buffer, vw, vh).then(function(symbols) {
-        if (!scanning) return;
-        if (symbols.length > 0 && frameCount <= 5) scanLog('scanGrayBuffer found ' + symbols.length);
-        processSymbols(symbols);
-      }).catch(function(err) {
-        if (frameCount <= 5) scanLog('scanGrayBuffer err: ' + (err.message||'').substring(0, 60));
-        if (scanning) detectorTimer = setTimeout(detectLoop, 200);
-      });
-    };
-
-    zbarWasm.ZBarImage.createFromGrayBuffer(vw, vh, gray.buffer).then(function(img) {
-      if (!scanning) { img.destroy(); return; }
-      var count = zbarScanner.scan(img);
-      if (count < 0) { img.destroy(); fallbackScan(); return; }
-      var symbols = count > 0 ? img.getSymbols() : [];
-      var hasResults = symbols.length > 0;
-      if (hasResults && frameCount <= 10) scanLog('Frame ' + frameCount + ': ZBarScanner found ' + symbols.length);
-      img.destroy();
-      if (!scanning) return;
-      if (!hasResults) { fallbackScan(); return; }
-      processSymbols(symbols);
-    }).catch(function(err) {
-      if (frameCount <= 5) scanLog('createFromGrayBuffer err: ' + (err.message||'').substring(0, 60));
-      fallbackScan();
-    });
-  } catch (e) {
-    if (frameCount <= 5) scanLog('ZBar exception: ' + (e.message || e));
-    if (scanning) detectorTimer = setTimeout(detectLoop, 500);
-  }
-}
-
-function tryHighResPhoto() {
-  if (!imageCapture || photoDecodePending || !scanning) return;
-  var now = Date.now();
-  if (now - lastPhotoAttempt < 3000) return;
-  lastPhotoAttempt = now;
-  photoDecodePending = true;
-  imageCapture.takePhoto().then(function(blob) {
-    var img = new Image();
-    img.onload = function() {
-      var c = document.createElement('canvas');
-      c.width = img.width;
-      c.height = img.height;
-      var ctx = c.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(img, 0, 0);
-      var imageData = ctx.getImageData(0, 0, img.width, img.height);
-      var gray = new Uint8Array(img.width * img.height);
-      var rgba = imageData.data;
-      for (var g = 0; g < gray.length; g++) {
-        var p = g * 4;
-        gray[g] = (19595 * rgba[p] + 38469 * rgba[p+1] + 7472 * rgba[p+2]) >> 16;
-      }
-      scanLog('High-res photo: ' + img.width + 'x' + img.height);
-      zbarWasm.scanGrayBuffer(gray.buffer, img.width, img.height).then(function(symbols) {
-        photoDecodePending = false;
-        if (symbols.length > 0) {
-          scanLog('PHOTO SCAN found ' + symbols.length + ' symbols!');
-          processSymbols(symbols);
-        }
-      }).catch(function(err) {
-        photoDecodePending = false;
-      });
-    };
-    img.src = URL.createObjectURL(blob);
-  }).catch(function(err) {
-    photoDecodePending = false;
-  });
-}
-
-function processSymbols(symbols) {
-  if (!scanning) return;
-  if (symbols.length === 0) {
-    if (frameCount > 10 && frameCount % 8 === 0) tryHighResPhoto();
-    if (scanning) detectorTimer = setTimeout(detectLoop, 200);
-    return;
-  }
-  for (var j = 0; j < symbols.length; j++) {
-    var sym = symbols[j];
-    var code = sym.decode();
-    scanLog('ZBar found: ' + sym.typeName + ' ' + code + ' (frame ' + frameCount + ')');
-    code = code.replace(/[^0-9]/g, '');
-    if (code.length >= 8 && code.length <= 14) {
-      if (code === lastUpc) {
-        lastUpcCount++;
-      } else {
-        lastUpc = code;
-        lastUpcCount = 1;
-      }
-      if (lastUpcCount >= 2) {
-        scanLog('Accepted (confirmed): ' + code + ' (' + sym.typeName + ')');
-        detectionFlash();
-        beep();
-        lookupUpc(code);
-        return;
-      }
-    }
-  }
-  if (scanning) detectorTimer = setTimeout(detectLoop, 200);
-}
-
-function stopScanner() {
-  if (detectorTimer) { clearTimeout(detectorTimer); detectorTimer = null; }
-  if (cameraStream) {
-    cameraStream.getTracks().forEach(function(t) { t.stop(); });
-    cameraStream = null;
-  }
-  scanCanvas = null;
-  scanCtx = null;
-  overlayCanvas = null;
-  var r = $('reader');
-  while (r.firstChild) r.removeChild(r.firstChild);
-  var bp = $('btnPause'); if (bp) bp.style.display = 'none';
-  if (!processingPhoto) setScanPrompt(true);
-}
-
 async function lookupUpc(upc) {
-  stopScanner();
   processingPhoto = false;
   var id = ++lookupId;
   lastUpc = upc;
@@ -813,23 +514,4 @@ if (urlUpc && urlUpc.length >= 8) {
 } else {
   $('manualUpc').value = '';
 }
-
-document.addEventListener('visibilitychange', function() {
-  if (document.hidden) { scanning = false; }
-});
-
-$('btnPause').addEventListener('click', function() {
-  if (scanning) {
-    stopScanner();
-    scanning = false;
-    this.textContent = '\u25B6';
-    $('reader').style.opacity = '0';
-  } else {
-    scanning = true;
-    startScanner();
-    this.textContent = '\u23F8';
-  }
-});
-
-// Video scanner no longer auto-starts; user taps the big photo button instead
 }
