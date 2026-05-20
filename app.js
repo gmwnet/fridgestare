@@ -128,6 +128,9 @@ async function doAuth(pin) {
 }
 $('pinSubmit').addEventListener('click', function() { doAuth($('pinInput').value.trim()); });
 $('pinInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') $('pinSubmit').click(); });
+$('pinInput').addEventListener('focus', function() {
+  setTimeout(function() { $('pinBox').scrollIntoView({block:'center'}); }, 300);
+});
 $('userBadge').addEventListener('click', function() {
   localStorage.removeItem('groscan_user');
   currentUser = null;

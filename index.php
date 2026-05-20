@@ -808,8 +808,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #errorOverlay{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:32px 48px;border-radius:16px;font-size:20px;font-weight:600;z-index:300;display:none;text-align:center;background:#ff3b30;color:#fff;min-width:200px;max-width:80vw;line-height:1.4}
 #errorOverlay.show{display:block}
 #errorClose{position:absolute;top:2px;right:10px;background:none;border:none;color:#fff;font-size:36px;cursor:pointer;font-weight:700;line-height:1;padding:4px 8px}
-#pinOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center}
-#pinBox{background:#1a1a1a;padding:32px;border-radius:16px;text-align:center;min-width:300px}
+#pinOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#pinBox{background:#1a1a1a;padding:32px 32px 48px;border-radius:16px;text-align:center;min-width:300px}
 #pinBox h2{font-size:22px;margin-bottom:4px}
 #pinBox p{color:#888;font-size:14px;margin-bottom:20px}
 #pinBox input{width:100%;padding:14px 16px;font-size:24px;text-align:center;border:1px solid #555;border-radius:8px;background:#222;color:#fff;outline:none;letter-spacing:8px}
