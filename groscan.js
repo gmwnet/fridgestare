@@ -129,7 +129,7 @@ async function doAuth(pin) {
     $('logoutIcon').style.display = 'inline';
     $('pinOverlay').style.display = 'none';
     turnstileToken = null;
-    if (page === 'scan') { scanning = true; startScanner(); }
+    if (page === 'scan') { scanning = false; setScanPrompt(true); }
   } catch (e) { $('pinError').textContent = 'Network error'; $('pinError').style.display = 'block'; }
 }
 $('pinSubmit').addEventListener('click', function() { doAuth($('pinInput').value.trim()); });

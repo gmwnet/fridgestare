@@ -488,7 +488,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #sideMenu a.active{color:#fff;background:#333;border-left:3px solid #007aff}
 #overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:150;display:none}
 #overlay.show{display:block}
-#flash{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:24px 48px;border-radius:16px;font-size:24px;font-weight:700;z-index:300;display:none;pointer-events:none}
+#flash{position:fixed;top:30%;left:50%;transform:translate(-50%,-50%);padding:24px 48px;border-radius:16px;font-size:24px;font-weight:700;z-index:300;display:none;pointer-events:none}
 #flash.show{display:block}
 #flash.add{background:#34c759;color:#fff}
 #flash.take{background:#ff9500;color:#fff}
