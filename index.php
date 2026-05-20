@@ -550,7 +550,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #navBar{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;padding:0 12px;background:#1a1a1a;border-bottom:1px solid #333;z-index:110}
 #menuBtn{background:none;border:none;color:#fff;font-size:26px;cursor:pointer;padding:4px 8px;margin-right:10px;line-height:1}
 #pageTitle{font-size:17px;font-weight:600}
-#sideMenu{position:fixed;top:0;left:0;width:260px;height:100dvh;background:#1a1a1a;z-index:200;transform:translateX(-100%);transition:transform .25s;padding:56px 0 0 0}
+#sideMenu{position:fixed;top:0;left:0;width:260px;height:100dvh;background:#1a1a1a;z-index:200;transform:translateX(-100%);transition:transform .25s;padding:8px 0 0 0}
 #sideMenu.open{transform:translateX(0)}
 #sideMenu a{display:flex;align-items:center;gap:12px;padding:16px 20px;color:#ccc;text-decoration:none;font-size:16px;border-bottom:1px solid #222}
 #sideMenu a.active{color:#fff;background:#333;border-left:3px solid #007aff}
@@ -654,7 +654,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div>
 
 <div id="sideMenu">
-  <div style="display:flex;align-items:center;gap:10px;padding:16px 20px 12px;border-bottom:1px solid #333;margin-bottom:8px">
+  <div style="display:flex;align-items:center;gap:10px;padding:12px 20px 10px;border-bottom:1px solid #333;margin-bottom:4px">
     <img src="/favicon-32x32.png" alt="" style="width:28px;height:28px;border-radius:4px">
     <span style="font-size:18px;font-weight:600;color:#fff">Groventry</span>
   </div>
