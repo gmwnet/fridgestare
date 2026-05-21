@@ -818,7 +818,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #scanPrompt .hint{color:#888;font-size:14px;margin-top:6px}
 #result{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);padding:10px 12px;transform:translateY(100%);transition:transform .3s}
 #result.show{transform:translateY(0)}
-.edit-field{width:100%;padding:14px 16px;font-size:20px;background:#222;border:1px solid #555;border-radius:8px;color:#fff;margin-bottom:6px;outline:none}
+.edit-field{width:100%;padding:10px 12px;font-size:15px;background:#222;border:1px solid #555;border-radius:6px;color:#fff;outline:none}
 .edit-field:focus{border-color:#007aff}
 .edit-field::placeholder{color:#666}
 #suggestions{position:absolute;left:0;right:0;top:100%;background:#222;border:1px solid #555;border-top:none;border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;display:none;z-index:10}
@@ -1105,17 +1105,32 @@ foreach ($qtys as $v) {
 
 <div id="usersPage">
   <h2>Users</h2>
-  <div id="changePinForm" style="margin-top:0;padding-top:0;border-top:none">
+  <div id="changePinForm">
     <h3 style="font-size:16px;margin-bottom:12px">Change PIN</h3>
-    <select id="pinUserSelect" class="edit-field" style="margin-bottom:8px"></select>
-    <input type="tel" id="selfNewPin" class="edit-field" placeholder="New PIN (4-8 digits)" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:8px">
-    <input type="tel" id="selfConfirmPin" class="edit-field" placeholder="Confirm new PIN" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:12px">
+    <div class="set-row">
+      <span class="set-label">User</span>
+      <span class="set-val"><select id="pinUserSelect" class="edit-field"></select></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">New PIN</span>
+      <span class="set-val"><input type="tel" id="selfNewPin" class="edit-field" placeholder="4-8 digits" inputmode="numeric" pattern="[0-9]*" maxlength="8"></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">Confirm PIN</span>
+      <span class="set-val"><input type="tel" id="selfConfirmPin" class="edit-field" placeholder="4-8 digits" inputmode="numeric" pattern="[0-9]*" maxlength="8"></span>
+    </div>
     <button id="btnChangeMyPin" style="padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;cursor:pointer">Change PIN</button>
   </div>
   <div id="usersForm" style="margin-top:20px;padding-top:16px;border-top:1px solid #333">
     <h3 style="font-size:16px;margin-bottom:12px">Add User</h3>
-    <input type="text" id="newUserName" class="edit-field" placeholder="Name" style="margin-bottom:8px">
-    <input type="tel" id="newUserPin" class="edit-field" placeholder="PIN (4-8 digits)" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:12px">
+    <div class="set-row">
+      <span class="set-label">Name</span>
+      <span class="set-val"><input type="text" id="newUserName" class="edit-field" placeholder="Username"></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">PIN</span>
+      <span class="set-val"><input type="tel" id="newUserPin" class="edit-field" placeholder="4-8 digits" inputmode="numeric" pattern="[0-9]*" maxlength="8"></span>
+    </div>
     <button id="btnAddUser" style="padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer">Add User</button>
   </div>
   <div style="margin-top:24px;padding-top:16px;border-top:1px solid #333">
