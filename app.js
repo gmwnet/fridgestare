@@ -178,6 +178,11 @@ function dom(tag, attrs) {
   return el;
 }
 
+function setScanPrompt(show) {
+  var el = $('scanPrompt');
+  if (el) el.style.display = show ? 'flex' : 'none';
+}
+
 if (page === 'scan') {
 
 // --- Manual entry ---
@@ -202,11 +207,6 @@ $('clearUpc').addEventListener('click', function() {
   $('manualUpc').focus();
   $('clearUpc').style.display = 'none';
 });
-
-function setScanPrompt(show) {
-  var el = $('scanPrompt');
-  if (el) el.style.display = show ? 'flex' : 'none';
-}
 
 // --- Photo snap scanning ---
 if ($('btnSnap')) $('btnSnap').addEventListener('click', function() {
