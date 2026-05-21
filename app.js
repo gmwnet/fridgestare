@@ -705,6 +705,102 @@ async function loadLedger() {
 
 loadLedger();
 
+} else if (page === 'meal-planner') {
+
+var mealTags = ['Protein','Main','Sauce','Side','Snack','Dessert','Use Soon','Staple'];
+var selectedMealTags = [];
+var mealSuggestions = [];
+
+function renderMealTagToggles() {
+  var container = $('mealTagList');
+  while (container.firstChild) container.removeChild(container.firstChild);
+  mealTags.forEach(function(tag) {
+    var btn = dom('button', {'class':'tag-btn', 'data-tag':tag}, tag);
+    if (selectedMealTags.includes(tag)) btn.classList.add('active');
+    btn.addEventListener('click', function() {
+      if (selectedMealTags.includes(tag)) {
+        selectedMealTags = selectedMealTags.filter(function(t) { return t !== tag; });
+        btn.classList.remove('active');
+      } else {
+        selectedMealTags.push(tag);
+        btn.classList.add('active');
+      }
+      onMealTagsChanged();
+    });
+    container.appendChild(btn);
+  });
+}
+
+function onMealTagsChanged() {
+  if (selectedMealTags.length === 0) {
+    $('mealSuggestions').style.display = 'none';
+    return;
+  }
+  fetchMealSuggestions();
+}
+
+async function fetchMealSuggestions() {
+  try {
+    var res = await fetch('/api/meal-plan?tags=' + encodeURIComponent(selectedMealTags.join(',')));
+    var data = await res.json();
+    renderMealSuggestions(data);
+  } catch (e) { showError('Could not get suggestions.'); }
+}
+
+function renderMealSuggestions(data) {
+  mealSuggestions = data.suggestions || [];
+  var list = $('mealSuggestionList');
+  while (list.firstChild) list.removeChild(list.firstChild);
+  var unavail = $('mealUnavailable');
+  unavail.style.display = 'none';
+  while (unavail.firstChild) unavail.removeChild(unavail.firstChild);
+  mealSuggestions.forEach(function(s) {
+    var row = dom('div', {'class':'invp-item'});
+    var cb = dom('input', {'type':'checkbox', 'data-upc':s.upc, 'checked':'checked', 'style':'width:18px;height:18px;accent-color:#34c759;cursor:pointer'});
+    row.appendChild(cb);
+    var nameEl = dom('span', {'class':'invp-name'}, esc(s.name));
+    if (s.brand) nameEl.appendChild(dom('span', {'style':'font-size:12px;color:#888;margin-left:6px'}, esc(s.brand)));
+    if (s.useSoon) nameEl.appendChild(dom('span', {'style':'margin-left:6px;padding:2px 6px;background:#ff950033;color:#ff9500;border-radius:4px;font-size:11px;font-weight:600'}, 'Use soon!'));
+    row.appendChild(nameEl);
+    var meta = dom('span', {'style':'font-size:13px;color:#888'}, 'x' + s.qty);
+    if (s.qty === 1) meta.appendChild(dom('span', {'style':'font-size:11px;color:#ff3b30;margin-left:4px'}, '(last one!)'));
+    row.appendChild(meta);
+    list.appendChild(row);
+  });
+  if (data.unavailable && data.unavailable.length > 0) {
+    unavail.textContent = "You don't have anything tagged: " + data.unavailable.join(', ') + '. Add some items or pick different tags.';
+    unavail.style.display = 'block';
+  }
+  $('mealSuggestions').style.display = mealSuggestions.length > 0 || (data.unavailable && data.unavailable.length > 0) ? 'block' : 'none';
+}
+
+$('mealReshuffle').addEventListener('click', function() {
+  if (selectedMealTags.length > 0) fetchMealSuggestions();
+});
+
+$('mealConfirm').addEventListener('click', async function() {
+  if (!currentUser) { showError('Log in first.'); return; }
+  if (mealSuggestions.length === 0) return;
+  var checkboxes = document.querySelectorAll('#mealSuggestionList input[type=checkbox]:checked');
+  if (checkboxes.length === 0) { showError('Select at least one item.'); return; }
+  var taken = 0;
+  for (var i = 0; i < checkboxes.length; i++) {
+    var upc = checkboxes[i].dataset.upc;
+    var item = mealSuggestions.find(function(s) { return s.upc === upc; });
+    if (!item) continue;
+    try {
+      var d = await apiAction(upc, 'take', item.name, item.brand || null);
+      if (d.success) taken++;
+    } catch (e) {}
+  }
+  var f = $('flash');
+  f.textContent = 'Removed ' + taken + ' items from inventory. Enjoy your meal!';
+  f.className = 'show add';
+  setTimeout(function() { f.className = ''; window.location.href = '/'; }, 2000);
+});
+
+renderMealTagToggles();
+
 } else if (page === 'settings') {
 
 (async function() {

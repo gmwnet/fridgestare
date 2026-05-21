@@ -512,24 +512,7 @@ if ($uri === '/api/config' && $method === 'POST') {
     $export = var_export($newCfg, true);
     file_put_contents(__DIR__ . '/config.php', "<?php\nreturn " . $export . ";\n");
 
-    $changes = [];
-    $labels = [
-        'upcitemdb_key' => 'UPCItemDB key',
-        'turnstile_site_key' => 'Turnstile site key',
-        'turnstile_secret_key' => 'Turnstile secret key',
-        'timezone' => 'timezone',
-        'session_timeout_days' => 'session timeout',
-        'pin_max_attempts' => 'PIN max attempts',
-        'pin_lockout_hours' => 'PIN lockout duration',
-        'default_qty' => 'default quantity',
-        'debug' => 'debug mode',
-    ];
-    foreach ($allowed as $k) {
-        if (array_key_exists($k, $input)) $changes[] = $labels[$k] ?? $k;
-    }
-    if ($changes) {
-        logAdminAction($db, 'config_change', 'Updated ' . implode(', ', $changes), $userId);
-    }
+    logAdminAction($db, 'config_change', 'Saved settings', $userId);
     jsonResponse(['success' => true]);
 }
 
@@ -561,7 +544,7 @@ if ($uri === '/api/user' && $method === 'POST') {
     $hash = password_hash($pin, PASSWORD_DEFAULT);
     try {
         dbExecWithRetry($db, "INSERT INTO users (name, pin_hash) VALUES (?, ?)", [$name, $hash]);
-        logAdminAction($db, 'user_add', "Added user '$name'", $userId);
+        logAdminAction($db, 'user_add', "User '$name' added", $userId);
         jsonResponse(['success' => true]);
     } catch (PDOException $e) {
         jsonResponse(['error' => 'Name already exists'], 409);
@@ -599,10 +582,10 @@ if (preg_match('#^/api/user/(\d+)$#', $uri, $m) && $method === 'POST') {
     $stmt->execute([$id]);
     $oldName = $stmt->fetchColumn();
     if ($pin !== null) {
-        logAdminAction($db, 'user_update', "Changed PIN for '$oldName'", $userId);
+        logAdminAction($db, 'user_update', "User '$oldName' changed PIN", $userId);
     }
     if ($name !== null) {
-        logAdminAction($db, 'user_update', "Renamed user to '$name'", $userId);
+        logAdminAction($db, 'user_update', "User renamed to '$name'", $userId);
     }
     jsonResponse(['success' => true]);
 }
@@ -621,7 +604,7 @@ if (preg_match('#^/api/user/(\d+)$#', $uri, $m) && $method === 'DELETE') {
     if ($count <= 1) jsonResponse(['error' => 'Cannot delete the last user'], 400);
 
     dbExecWithRetry($db, "DELETE FROM users WHERE id = ?", [$id]);
-    logAdminAction($db, 'user_delete', "Deleted user '$name'", $userId);
+    logAdminAction($db, 'user_delete', "User '$name' deleted", $userId);
     jsonResponse(['success' => true]);
 }
 
@@ -641,7 +624,7 @@ if ($uri === '/api/user/change-pin' && $method === 'POST') {
     if (!$name) jsonResponse(['error' => 'User not found'], 404);
 
     dbExecWithRetry($db, "UPDATE users SET pin_hash = ? WHERE id = ?", [password_hash($newPin, PASSWORD_DEFAULT), $id]);
-    logAdminAction($db, 'user_update', "Changed PIN for '$name'", $id);
+    logAdminAction($db, 'user_update', "User '$name' changed PIN", $id);
     jsonResponse(['success' => true]);
 }
 
@@ -714,18 +697,87 @@ if ($uri === '/api/auth' && $method === 'POST') {
     jsonResponse(['user' => ['id' => (int)$match['id'], 'name' => $match['name']]]);
 }
 
+// --- API: Meal Plan ---
+if ($uri === '/api/meal-plan' && $method === 'GET') {
+    $tagsParam = $_GET['tags'] ?? '';
+    $requestedTags = array_values(array_intersect(
+        array_filter(array_map('trim', explode(',', $tagsParam))),
+        ['Protein','Main','Sauce','Side','Snack','Dessert','Use Soon','Staple']
+    ));
+    if (empty($requestedTags)) {
+        jsonResponse(['error' => 'No valid tags provided'], 400);
+    }
+
+    $tagConditions = [];
+    $params = [];
+    foreach ($requestedTags as $tag) {
+        $tagConditions[] = "p.tags LIKE ?";
+        $params[] = '%"' . $tag . '"%';
+    }
+    $tagSql = implode(' OR ', $tagConditions);
+
+    $stmt = $db->prepare(
+        "SELECT i.upc, COALESCE(p.name, 'Unknown Product') AS name, p.brand, i.quantity, p.tags
+         FROM inventory i
+         LEFT JOIN products p ON i.upc = p.upc
+         WHERE i.quantity > 0 AND p.tags IS NOT NULL AND ($tagSql)
+         ORDER BY name COLLATE NOCASE ASC"
+    );
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $grouped = [];
+    foreach ($requestedTags as $tag) {
+        $grouped[$tag] = [];
+    }
+    foreach ($rows as $row) {
+        $itemTags = json_decode($row['tags'], true) ?: [];
+        foreach ($requestedTags as $tag) {
+            if (in_array($tag, $itemTags)) {
+                $grouped[$tag][] = [
+                    'upc' => $row['upc'],
+                    'name' => $row['name'],
+                    'brand' => $row['brand'],
+                    'qty' => (int)$row['quantity'],
+                    'useSoon' => in_array('Use Soon', $itemTags),
+                ];
+            }
+        }
+    }
+
+    $suggestions = [];
+    $unavailable = [];
+    foreach ($requestedTags as $tag) {
+        $pool = $grouped[$tag];
+        if (empty($pool)) {
+            $unavailable[] = $tag;
+            continue;
+        }
+        $weighted = [];
+        foreach ($pool as $item) {
+            $w = $item['useSoon'] ? 3 : 1;
+            for ($i = 0; $i < $w; $i++) $weighted[] = $item;
+        }
+        $suggestions[] = $weighted[array_rand($weighted)] + ['tag' => $tag];
+    }
+
+    jsonResponse(['suggestions' => $suggestions, 'unavailable' => $unavailable]);
+}
+
 // --- Page routes ---
 $page = 'scan';
 if ($uri === '/inventory') $page = 'inventory';
 if ($uri === '/ledger') $page = 'ledger';
 if ($uri === '/settings') $page = 'settings';
 if ($uri === '/users') $page = 'users';
+if ($uri === '/meal-planner') $page = 'meal-planner';
 $navItems = [
     '/'         => ['label' => 'Scanner', 'icon' => '📷'],
     '/inventory' => ['label' => 'Inventory', 'icon' => '📋'],
     '/ledger'    => ['label' => 'Ledger', 'icon' => '📜'],
     '/settings'  => ['label' => 'Settings', 'icon' => '⚙️'],
     '/users'     => ['label' => 'Users', 'icon' => '👤'],
+    '/meal-planner' => ['label' => 'Meal Planner', 'icon' => '🍳'],
 ];
 ?><!DOCTYPE html>
 <html lang="en">
@@ -855,7 +907,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="navBar">
   <button id="menuBtn">&#9776;</button>
   <img src="/favicon-32x32.png" alt="" style="width:24px;height:24px;margin-right:8px;border-radius:4px">
-  <span id="pageTitle"><?= $page === 'inventory' ? 'Inventory' : ($page === 'ledger' ? 'Ledger' : 'FridgeStare') ?></span>
+  <span id="pageTitle">FridgeStare</span>
   <span style="display:flex;align-items:center;margin-left:auto"><span id="userBadge"></span><span id="logoutIcon" style="cursor:pointer;padding:4px 6px 4px 0;color:#ccc;display:none">
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -873,6 +925,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <a href="/" class="<?= $page === 'scan' ? 'active' : '' ?>">Scanner</a>
   <a href="/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">Inventory</a>
   <a href="/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">Ledger</a>
+  <a href="/meal-planner" class="<?= $page === 'meal-planner' ? 'active' : '' ?>">Meal Planner</a>
   <a href="/settings" class="<?= $page === 'settings' ? 'active' : '' ?>">Settings</a>
   <a href="/users" class="<?= $page === 'users' ? 'active' : '' ?>">Users</a>
   <a href="#" id="menuSwitchUser" style="border-top:1px solid #333;margin-top:8px">&#x21C4; Switch User</a>
@@ -903,6 +956,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <div id="lgPage">
   <h2>Ledger</h2>
   <div id="lgList"></div>
+</div>
+
+<?php elseif ($page === 'meal-planner'): ?>
+
+<div id="mpPage" style="flex:1;overflow-y:auto;padding:12px 16px 60px;position:relative;z-index:10">
+  <h2 style="font-size:18px;margin-bottom:4px">Meal Planner</h2>
+  <p style="color:#888;font-size:13px;margin-bottom:16px">Pick what sounds good &mdash; we'll suggest a meal from your inventory.</p>
+  <div id="mealTagList" class="tag-list" style="justify-content:flex-start;max-width:none"></div>
+  <div id="mealSuggestions" style="display:none;margin-top:8px">
+    <div id="mealSuggestionList"></div>
+    <div id="mealUnavailable" style="color:#888;font-size:13px;margin-top:8px;padding:10px;background:#222;border-radius:8px;display:none"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button id="mealReshuffle" style="flex:1;padding:14px;font-size:16px;font-weight:600;border:none;border-radius:10px;background:#555;color:#fff;cursor:pointer">Another option</button>
+      <button id="mealConfirm" style="flex:1;padding:14px;font-size:16px;font-weight:600;border:none;border-radius:10px;background:#34c759;color:#fff;cursor:pointer">Confirm &amp; Take Selected</button>
+    </div>
+  </div>
 </div>
 
 <?php elseif ($page === 'settings'): ?>
