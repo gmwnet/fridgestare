@@ -25,10 +25,10 @@ A lightweight, self-contained grocery inventory and meal planning app. Scan UPC 
 
 ## Deployment
 
-### Option 1: Drop files on any PHP host (simplest)
+### Option 1: Manual (any PHP host)
 
 ```bash
-# Upload all files to your web root
+# Upload files to your web root (scp, FTP, rsync, or unzip a release)
 scp -r . user@host:/var/www/fridgestare/
 
 # Copy the example config and edit it
@@ -38,17 +38,15 @@ cp config.example.php config.php
 # On first visit, the app auto-creates "Default user" / PIN 1234
 ```
 
-The app is self-contained — no database server, no package manager, no build step.
+Requirements: PHP 7.4+ with `php-sqlite3`, Apache with `mod_rewrite`.
 
-### Option 2: Run the deploy script
+### Option 2: Deploy script
 
-The deploy script checks that PHP, SQLite, and Apache mod_rewrite are available, then sets file permissions:
+Checks PHP, SQLite, and Apache mod_rewrite, then sets file permissions. Run after uploading:
 
 ```bash
 ssh user@host "cd /var/www/fridgestare && bash deploy.sh"
 ```
-
-Run this after uploading files. It doesn't overwrite `config.php` or `fridgestare.db`.
 
 ### Option 3: Docker
 
@@ -57,17 +55,7 @@ docker-compose up -d
 # App available at http://localhost:8420
 ```
 
-The Docker image:
-- Uses PHP 8.2 Apache with SQLite and zbarimg pre-installed
-- Strips any local API keys from `config.php` and writes clean defaults
-- Stores the SQLite database in a named Docker volume (survives restarts)
-- Exposes port 8420
-
-To stop: `docker-compose down`
-
-### Option 4: Self-contained ZIP
-
-No build step, no package manager. Just download the ZIP from GitHub Releases, unzip, and deploy.
+The Docker image uses PHP 8.2 Apache with SQLite and zbarimg pre-installed. It strips any local API keys and writes clean defaults. The database is stored in a named Docker volume (survives restarts).
 
 ## Configuration
 
