@@ -478,7 +478,7 @@ $('manualName').addEventListener('input', function() {
   if (val.length < 2) { $('manualSuggestions').style.display = 'none'; return; }
   manualSuggestTimer = setTimeout(async function() {
     try {
-      var res = await fetch(apiUrl('/api/search?q=' + encodeURIComponent(val));
+      var res = await fetch(apiUrl('/api/search?q=' + encodeURIComponent(val)));
       var data = await res.json();
       var list = $('manualSuggestions');
       while (list.firstChild) list.removeChild(list.firstChild);
@@ -522,7 +522,7 @@ async function lookupUpc(upc) {
   $('banner').style.display = 'none';
   $('btnAdd').disabled = true;
   try {
-    var res = await fetch(apiUrl('/api/lookup?upc=' + encodeURIComponent(upc));
+    var res = await fetch(apiUrl('/api/lookup?upc=' + encodeURIComponent(upc)));
     var data = await res.json();
     if (lookupId !== id) return;
     if (!res.ok) { showError(data.error); return; }
@@ -623,7 +623,7 @@ $('editName').addEventListener('input', function() {
   if (val.length < 2) { $('suggestions').classList.remove('show'); return; }
   suggestTimer = setTimeout(async function() {
     try {
-      var res = await fetch(apiUrl('/api/search?q=' + encodeURIComponent(val));
+      var res = await fetch(apiUrl('/api/search?q=' + encodeURIComponent(val)));
       var data = await res.json();
       var list = $('suggestions');
       while (list.firstChild) list.removeChild(list.firstChild);
@@ -704,7 +704,7 @@ function renderInvPage() {
 
 async function loadInvPage() {
   try {
-    var res = await fetch(apiUrl('/api/inventory');
+    var res = await fetch(apiUrl('/api/inventory'));
     var data = await res.json();
     invpData = data.items;
     renderInvPage();
@@ -728,7 +728,7 @@ loadInvPage();
 
 async function loadLedger() {
   try {
-    var res = await fetch(apiUrl('/api/ledger');
+    var res = await fetch(apiUrl('/api/ledger'));
     var data = await res.json();
     var list = $('lgList');
     while (list.firstChild) list.removeChild(list.firstChild);
@@ -787,7 +787,7 @@ function onMealTagsChanged() {
 
 async function fetchMealSuggestions() {
   try {
-    var res = await fetch(apiUrl('/api/meal-plan?tags=' + encodeURIComponent(selectedMealTags.join(',')));
+    var res = await fetch(apiUrl('/api/meal-plan?tags=' + encodeURIComponent(selectedMealTags.join(','))));
     var data = await res.json();
     renderMealSuggestions(data);
   } catch (e) { showError('Could not get suggestions.'); }
@@ -851,7 +851,7 @@ renderMealTagToggles();
 
 (async function() {
   try {
-    var res = await fetch(apiUrl('/api/config?session_token=' + encodeURIComponent(sessionToken() || ''));
+    var res = await fetch(apiUrl('/api/config?session_token=' + encodeURIComponent(sessionToken() || '')));
     if (res.status === 401) { expireSession(); return; }
     var data = await res.json();
     $('cfg_timezone').value = data.timezone || 'UTC';
@@ -921,7 +921,7 @@ renderMealTagToggles();
 
 async function loadUsers() {
   try {
-    var res = await fetch(apiUrl('/api/users');
+    var res = await fetch(apiUrl('/api/users'));
     var data = await res.json();
     var list = $('usersList');
     while (list.firstChild) list.removeChild(list.firstChild);
