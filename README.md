@@ -61,15 +61,7 @@ cp config.example.php config.php
 
 Requirements: PHP 7.4+ with `php-sqlite3`, Apache with `mod_rewrite`.
 
-### Option 2: Deploy script
-
-Checks PHP, SQLite, and Apache mod_rewrite, then sets file permissions. Run after uploading:
-
-```bash
-ssh user@host "cd /var/www/fridgestare && bash deploy.sh"
-```
-
-### Option 3: Docker
+### Option 2: Docker
 
 ```bash
 docker-compose up -d
