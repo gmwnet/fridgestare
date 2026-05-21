@@ -1,5 +1,9 @@
 # FridgeStare
 
+<p align="center">
+  <img src="apple-touch-icon.png" alt="FridgeStare" width="128">
+</p>
+
 A lightweight, self-contained grocery inventory and meal planning app. Scan UPC barcodes with your phone camera, look up product info, track your stock, and get randomized meal suggestions from what you have on hand.
 
 ## Features
