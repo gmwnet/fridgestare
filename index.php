@@ -2,6 +2,14 @@
 // FridgeStare — Grocery UPC Scanner
 // Single-file PHP app: scan barcodes, look up products, manage inventory
 
+ini_set('display_errors', '0');
+set_exception_handler(function($e) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Internal server error']);
+    exit;
+});
+
 $dbPath = __DIR__ . '/groscan.db';
 $cfg = (file_exists(__DIR__ . '/config.php')) ? include __DIR__ . '/config.php' : [];
 
@@ -430,7 +438,7 @@ if ($uri === '/api/health' && $method === 'GET') {
     jsonResponse([
         'ok' => true,
         'version' => '0.1',
-        'php' => PHP_VERSION,
+        'php' => PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION . '.x',
         'sqlite' => $db->getAttribute(PDO::ATTR_SERVER_VERSION),
         'zbarimg' => $hasZbar,
         'timezone' => $cfg['timezone'] ?? 'UTC',
