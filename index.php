@@ -345,6 +345,13 @@ if ($uri === '/api/action' && $method === 'POST') {
     $qty = isset($input['qty']) ? (int)$input['qty'] : 1;
     if ($qty < 1) $qty = 1;
     $userId = $session['id'];
+    // Dedup manual entries: if UPC is internal (starts with 2) and name matches an existing product, reuse that UPC
+    if ($name !== null && $upc[0] === '2') {
+        $stmt = $db->prepare("SELECT upc FROM products WHERE LOWER(name) = LOWER(?) LIMIT 1");
+        $stmt->execute([$name]);
+        $existingUpc = $stmt->fetchColumn();
+        if ($existingUpc) $upc = $existingUpc;
+    }
     if ($name !== null || $brand !== null) {
         $existing = $db->prepare("SELECT COUNT(*) FROM products WHERE upc = ?");
         $existing->execute([$upc]);
