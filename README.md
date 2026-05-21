@@ -41,9 +41,25 @@ ssh user@host "cd /var/www/fridgestare && bash deploy.sh"
 
 ## First Run
 
-1. Log in with the default user: PIN `1234`
-2. Visit **Users** (via Settings → Manage Users) to add family members and change your PIN
-3. Head to the **Scanner** to start adding items
+**Important: Change the default PIN immediately.**
+
+1. Log in with `Default user` / PIN `1234`
+2. Go to **Settings → Manage Users**
+3. Create a new user with a name and PIN of your choice, then save
+4. Log out (top-right name → Switch User) and log in as your new user
+5. Go back to **Settings → Manage Users** and delete `Default user`
+
+That's it — you now have your own account. The default user is just a starting key.
+
+## Database Reset
+
+To wipe all data and restore the factory default user:
+
+```bash
+php reset-db.php
+```
+
+This is a **CLI-only** script — it refuses to run via the web. It clears inventory, ledger, products, rate limits, and users, then recreates `Default user` / PIN `1234`.
 
 ## Tech Stack
 
