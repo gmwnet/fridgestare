@@ -143,7 +143,7 @@ try { $db->exec("ALTER TABLE products ADD COLUMN tags TEXT"); } catch (PDOExcept
 $countStmt = $db->query("SELECT COUNT(*) FROM users");
 if ($countStmt && (int)$countStmt->fetchColumn() === 0) {
     $defaultHash = password_hash('1234', PASSWORD_DEFAULT);
-    $stmt = $db->prepare("INSERT INTO users (name, pin_hash) VALUES ('default user', ?)");
+    $stmt = $db->prepare("INSERT INTO users (name, pin_hash) VALUES ('Default user', ?)");
     $stmt->execute([$defaultHash]);
 }
 

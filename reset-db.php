@@ -14,7 +14,7 @@ if (!file_exists($dbPath)) {
 }
 
 echo "WARNING: This will delete ALL inventory, ledger entries, products, users, and rate limits.\n";
-echo "The database will be reset to its first-run state (default user / PIN 1234).\n";
+echo "The database will be reset to its first-run state (Default user / PIN 1234).\n";
 echo "Type 'yes' to continue: ";
 $handle = fopen('php://stdin', 'r');
 $input = trim(fgets($handle));
@@ -38,7 +38,7 @@ try {
 
     $hash = password_hash('1234', PASSWORD_DEFAULT);
     $stmt = $db->prepare("INSERT INTO users (name, pin_hash) VALUES (?, ?)");
-    $stmt->execute(['default user', $hash]);
+    $stmt->execute(['Default user', $hash]);
 
     echo "Database reset complete.\n";
     echo "  - All inventory, ledger, products, rate limits cleared\n";
