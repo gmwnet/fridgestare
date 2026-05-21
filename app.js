@@ -127,7 +127,7 @@ async function doAuth(pin) {
     currentUser = data.user;
     currentUser.expires_at = Date.now() + sessionDays * 24 * 60 * 60 * 1000;
     localStorage.setItem('groscan_user', JSON.stringify(currentUser));
-    location.reload();
+    location.href = '/';
   } catch (e) { $('pinError').textContent = 'Network error'; $('pinError').style.display = 'block'; }
 }
 $('pinSubmit').addEventListener('click', function() { doAuth($('pinInput').value.trim()); });
