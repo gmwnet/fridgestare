@@ -1147,12 +1147,16 @@ foreach ($qtys as $v) {
 <div id="helpPage" style="flex:1;overflow-y:auto;padding:12px 16px 60px;position:relative;z-index:10">
   <h2 style="font-size:18px;margin-bottom:12px">Help</h2>
   <div style="color:#ccc;font-size:14px;line-height:1.6">
-    <p style="margin-bottom:10px"><strong>Getting Started</strong><br>Log in with your PIN, then head to the Scanner to start adding items.</p>
-    <p style="margin-bottom:10px"><strong>Scanning Barcodes</strong><br>Tap the 📷 button on the Scanner page to open your camera and snap a photo of a UPC barcode. The app decodes it client-side and looks up product info.</p>
-    <p style="margin-bottom:10px"><strong>Manual Entry</strong><br>No barcode? Tap "No barcode? Add manually" to enter product details and pick meal-planning tags.</p>
-    <p style="margin-bottom:10px"><strong>What's for Dinner?</strong><br>Select tags for the meal components you want, and the app will suggest a randomized combination from your current inventory. Check items to take and tap "Confirm &amp; Take Selected".</p>
-    <p style="margin-bottom:10px"><strong>Inventory</strong><br>View and adjust your current stock with live +/- buttons.</p>
-    <p style="margin-bottom:10px"><strong>Ledger</strong><br>Audit trail of all add/take and admin actions, with timestamps and usernames.</p>
+    <p style="margin-bottom:10px"><strong>Getting Started</strong><br>Log in with your PIN, then head to the Scanner to start adding items. Each family member gets their own PIN so actions are attributed in the Ledger.</p>
+    <p style="margin-bottom:10px"><strong>PIN Login &amp; Switch User</strong><br>On first visit (or after logging out), enter your 4–8 digit PIN. The app remembers you for the session timeout duration set in Settings. To switch users, tap your name in the top bar or use "Switch User" in the side menu. Rate limiting locks out an IP after too many failed attempts — see Emergency Unlock below.</p>
+    <p style="margin-bottom:10px"><strong>Scanning Barcodes</strong><br>From the Scanner page, tap the 📷 button to open your native camera and snap a photo of a UPC barcode. The app decodes it client-side using ZBar WASM and looks up product info via Open Food Facts. If the lookup fails, you can enter a name and brand manually. Already-scanned items are cached locally for fast repeat scans.</p>
+    <p style="margin-bottom:10px"><strong>Manual Entry</strong><br>No barcode? Tap "No barcode? Add manually" to enter product details. You can set a name, brand, quantity, and assign meal-planning tags. The item gets an internal ID so it behaves like any scanned product.</p>
+    <p style="margin-bottom:10px"><strong>Tags &amp; Meal Planning</strong><br>Each item can have tags: Protein, Main, Sauce, Side, Snack, Dessert, Use Soon, Staple. Tags are assigned when adding an item or editing it after a scan. The "What's for Dinner?" page uses these tags to suggest meals — pick which components you want and get a randomized combination from your actual inventory. "Use Soon" items get 3× the weight so they appear first.</p>
+    <p style="margin-bottom:10px"><strong>Inventory</strong><br>View your current stock with live +/- buttons. Use the filter box to quickly find items by name. Quantities update in real time and are recorded in the Ledger.</p>
+    <p style="margin-bottom:10px"><strong>Ledger</strong><br>Audit trail of every add, take, and admin action with timestamps and usernames. Admin actions (config changes, user management) appear in blue. Use it to see who ate what and when.</p>
+    <p style="margin-bottom:10px"><strong>Managing Users</strong><br>Visit Settings → Manage Users to add or delete family members, or change any user's PIN. Deleting a user preserves their ledger history (usernames are stored as text, not relational links). You cannot delete the last remaining user.</p>
+    <p style="margin-bottom:10px"><strong>Settings</strong><br>Configure timezone, session timeout, PIN rate limits, and default quantity. Set Cloudflare Turnstile keys for captcha on PIN entry, and a UPCItemDB key as a secondary product lookup source. Hover or tap the "?" icons on each field for a description. The Danger Zone at the bottom holds API keys — treat them like passwords.</p>
+    <p style="margin-bottom:10px"><strong>Emergency Unlock</strong><br>If rate limiting locks everyone out: SSH into the server, set <code>emergency_unlock =&gt; true</code> in <code>config.php</code>, then hit the unlock endpoint (ask an admin). Reset the flag to <code>false</code> immediately after.</p>
   </div>
 </div>
 
