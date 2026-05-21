@@ -1174,7 +1174,7 @@ foreach ($qtys as $v) {
     <p style="color:#888;font-size:13px;margin-bottom:12px">These settings affect external services and security.</p>
 
     <div class="set-row">
-      <span class="set-label">Turnstile Site Key <span class="help-icon" data-tip="Cloudflare Turnstile site key for CAPTCHA on the PIN login screen. Leave blank to disable.">?</span></span>
+      <span class="set-label">Turnstile Site Key <span class="help-icon" data-tip="Cloudflare Turnstile site key for CAPTCHA on the PIN login screen. Leave blank to disable.">?</span> <a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener" style="color:#007aff;font-size:12px;text-decoration:none">Get free keys</a></span>
       <span class="set-val"><input type="text" id="cfg_turnstile_site_key" placeholder="Cloudflare Turnstile Site Key"></span>
     </div>
     <div class="set-row">
