@@ -1047,7 +1047,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <h2>Who's this?</h2>
   <p>Enter your PIN</p>
   <input type="tel" id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off">
-  <?php if (!empty($cfg['turnstile_site_key'])): ?><div id="turnstileWidget" class="cf-turnstile" data-sitekey="<?= htmlspecialchars($cfg['turnstile_site_key'] ?? '', ENT_QUOTES) ?>" data-callback="onTurnstileSuccess" style="margin:12px 0"></div><?php endif; ?>
+  <?php if (!empty($cfg['turnstile_site_key'])): ?><div id="turnstileWidget" class="cf-turnstile" data-sitekey="<?= htmlspecialchars($cfg['turnstile_site_key'] ?? '', ENT_QUOTES) ?>" data-theme="dark" data-callback="onTurnstileSuccess" style="margin:12px 0"></div><?php endif; ?>
   <div class="pinBtns"><button id="pinSubmit" style="background:#007aff;color:#fff">Log On</button></div>
   <div id="pinError">PIN not recognized</div>
 </div></div>
