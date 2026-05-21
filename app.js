@@ -5,7 +5,15 @@ var turnstileKey = cfg.turnstileKey;
 var debug = cfg.debug || false;
 var sessionDays = cfg.sessionDays || 30;
 var basePath = cfg.basePath || '';
-function apiUrl(path) { return basePath + path; }
+var scriptName = cfg.scriptName || '/index.php';
+function apiUrl(path) {
+  var qs = path.indexOf('?');
+  var route = qs >= 0 ? path.substring(0, qs) : path;
+  var extra = qs >= 0 ? '&' + path.substring(qs + 1) : '';
+  return scriptName + '?route=' + encodeURIComponent(route) + extra;
+}
+function navUrl(path) { return apiUrl(path); }
+function assetUrl(path) { return basePath + path; }
 var turnstileToken = null;
 var currentUser = null;
 var lastUpc = null;
@@ -56,7 +64,7 @@ function initZbar() {
   scanLog('Initializing ZBar WASM...');
 
   zbarWasm.setModuleArgs({
-    locateFile: function(f, d) { return apiUrl('/zbar.wasm'); }
+    locateFile: function(f, d) { return assetUrl('/zbar.wasm'); }
   });
 
   zbarWasm.getInstance().then(function() {

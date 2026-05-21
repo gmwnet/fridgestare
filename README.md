@@ -130,6 +130,19 @@ If you skip it, the CAPTCHA simply doesn't appear — the app works fine either 
 - Open Food Facts API (product lookup)
 - Cloudflare Turnstile (optional captcha)
 
+## ModSecurity / OWASP CRS
+
+If you run this app behind ModSecurity with OWASP CRS, you may need to exclude a few rules for the app's path:
+
+```apache
+# Content-Type on POST requests with body
+SecRuleRemoveById 920340 920640
+# Generic header-name policy  
+SecRuleRemoveById 920450
+```
+
+The app sends `Content-Type: application/json` on every POST with a body, but ModSecurity may still flag requests depending on your paranoia level and proxy configuration. The above exclusions are safe — the app doesn't accept file uploads or form data on authenticated endpoints.
+
 ## License
 
 MIT

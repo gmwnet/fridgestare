@@ -250,20 +250,33 @@ function checkSession($token) {
 }
 
 // --- Router ---
-$uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-$uri = is_string($uri) ? rtrim($uri, '/') : '/';
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Detect base path for subfolder deployment
-$basePath = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
-// Strip base path from URI for route matching
-$route = $uri;
-if ($basePath && strpos($uri, $basePath) === 0) {
-    $route = substr($uri, strlen($basePath)) ?: '/';
+// Script entry point (e.g., /index.php or /fridgestare/index.php)
+$scriptName = $_SERVER['SCRIPT_NAME'];
+// Base path for static assets (directory containing the script)
+$basePath = rtrim(dirname($scriptName), '/');
+
+// Determine the route — try route param first (works on any server without rewrite),
+// then PATH_INFO, then REQUEST_URI (clean URLs via rewrite)
+if (!empty($_GET['route'])) {
+    $uri = rtrim($_GET['route'], '/');
+} elseif (!empty($_SERVER['PATH_INFO'])) {
+    $uri = rtrim($_SERVER['PATH_INFO'], '/');
+} else {
+    $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+    $requestUri = is_string($requestUri) ? rtrim($requestUri, '/') : '/';
+    if (strlen($requestUri) > strlen($scriptName) && strpos($requestUri, $scriptName) === 0) {
+        $uri = substr($requestUri, strlen($scriptName)) ?: '/';
+    } elseif ($basePath && strlen($requestUri) >= strlen($basePath) && strpos($requestUri, $basePath) === 0) {
+        $uri = substr($requestUri, strlen($basePath)) ?: '/';
+    } else {
+        $uri = $requestUri;
+    }
 }
 
-// Use $route for all API/page matching below
-$uri = $route;
+// Ensure $uri starts with /
+if ($uri === '' || $uri[0] !== '/') $uri = '/' . $uri;
 
 // --- API: Lookup ---
 if ($uri === '/api/lookup' && $method === 'GET') {
@@ -888,6 +901,7 @@ $navItems = [
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <meta name="theme-color" content="#111">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>FridgeStare</title>
@@ -1039,14 +1053,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <img src="<?= $basePath ?>/favicon-32x32.png" alt="" style="width:28px;height:28px;border-radius:4px">
     <span style="font-size:18px;font-weight:600;color:#fff">FridgeStare</span>
   </div>
-  <a href="<?= $basePath ?>/" class="<?= $page === 'home' ? 'active' : '' ?>">🏠 Home</a>
-  <a href="<?= $basePath ?>/scan" class="<?= $page === 'scan' ? 'active' : '' ?>">📷 Scanner</a>
-  <a href="<?= $basePath ?>/meal-planner" class="<?= $page === 'meal-planner' ? 'active' : '' ?>">🍽️ What's for Dinner?</a>
-  <a href="<?= $basePath ?>/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">📋 Inventory</a>
-  <a href="<?= $basePath ?>/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">📜 Ledger</a>
+  <a href="<?= $scriptName ?>?route=/" class="<?= $page === 'home' ? 'active' : '' ?>">🏠 Home</a>
+  <a href="<?= $scriptName ?>?route=/scan" class="<?= $page === 'scan' ? 'active' : '' ?>">📷 Scanner</a>
+  <a href="<?= $scriptName ?>?route=/meal-planner" class="<?= $page === 'meal-planner' ? 'active' : '' ?>">🍽️ What's for Dinner?</a>
+  <a href="<?= $scriptName ?>?route=/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">📋 Inventory</a>
+  <a href="<?= $scriptName ?>?route=/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">📜 Ledger</a>
   <div style="border-top:1px solid #333;margin:4px 0"></div>
-  <a href="<?= $basePath ?>/settings" class="<?= $page === 'settings' ? 'active' : '' ?>">&#x2699;&#xFE0F; Settings</a>
-  <a href="<?= $basePath ?>/help" class="<?= $page === 'help' ? 'active' : '' ?>">&#x2753; Help</a>
+  <a href="<?= $scriptName ?>?route=/settings" class="<?= $page === 'settings' ? 'active' : '' ?>">&#x2699;&#xFE0F; Settings</a>
+  <a href="<?= $scriptName ?>?route=/help" class="<?= $page === 'help' ? 'active' : '' ?>">&#x2753; Help</a>
   <a href="#" id="menuSwitchUser" style="margin-top:4px">&#x21C4; Switch User</a>
 </div>
 
@@ -1069,14 +1083,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div style="text-align:center;margin-top:28px;margin-bottom:4px"><img src="<?= $basePath ?>/apple-touch-icon.png" alt="FridgeStare" style="width:72px;height:72px;border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.4)"></div>
   <div id="homeWelcome" style="font-size:22px;font-weight:600;text-align:center;margin-bottom:8px;color:#fff"></div>
   <div class="home-grid">
-    <a href="<?= $basePath ?>/scan" class="home-card home-card-lg"><span class="home-icon">📷</span><span class="home-label">Scanner</span></a>
-    <a href="<?= $basePath ?>/meal-planner" class="home-card home-card-lg"><span class="home-icon">🍽️</span><span class="home-label">What's for Dinner?</span></a>
+    <a href="<?= $scriptName ?>?route=/scan" class="home-card home-card-lg"><span class="home-icon">📷</span><span class="home-label">Scanner</span></a>
+    <a href="<?= $scriptName ?>?route=/meal-planner" class="home-card home-card-lg"><span class="home-icon">🍽️</span><span class="home-label">What's for Dinner?</span></a>
   </div>
   <div class="home-grid home-grid-sm">
-    <a href="<?= $basePath ?>/inventory" class="home-card home-card-sm"><span class="home-icon">📋</span><span class="home-label">Inventory</span></a>
-    <a href="<?= $basePath ?>/ledger" class="home-card home-card-sm"><span class="home-icon">📜</span><span class="home-label">Ledger</span></a>
-    <a href="<?= $basePath ?>/settings" class="home-card home-card-sm"><span class="home-icon">⚙️</span><span class="home-label">Settings</span></a>
-    <a href="<?= $basePath ?>/help" class="home-card home-card-sm"><span class="home-icon">❓</span><span class="home-label">Help</span></a>
+    <a href="<?= $scriptName ?>?route=/inventory" class="home-card home-card-sm"><span class="home-icon">📋</span><span class="home-label">Inventory</span></a>
+    <a href="<?= $scriptName ?>?route=/ledger" class="home-card home-card-sm"><span class="home-icon">📜</span><span class="home-label">Ledger</span></a>
+    <a href="<?= $scriptName ?>?route=/settings" class="home-card home-card-sm"><span class="home-icon">⚙️</span><span class="home-label">Settings</span></a>
+    <a href="<?= $scriptName ?>?route=/help" class="home-card home-card-sm"><span class="home-icon">❓</span><span class="home-label">Help</span></a>
   </div>
 </div>
 
@@ -1200,7 +1214,7 @@ foreach ($qtys as $v) {
     <button id="btnSaveSettings">Save Settings</button>
     <div style="margin-top:24px;padding-top:16px;border-top:1px solid #333">
       <p style="color:#888;font-size:13px;margin-bottom:8px">User accounts and PIN management</p>
-      <a href="<?= $basePath ?>/users" style="display:inline-block;padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;text-decoration:none;cursor:pointer">Manage Users &rarr;</a>
+      <a href="<?= $scriptName ?>?route=/users" style="display:inline-block;padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;text-decoration:none;cursor:pointer">Manage Users &rarr;</a>
     </div>
   </div>
   <div id="settingsHelpPopup"></div>
@@ -1345,6 +1359,7 @@ foreach ($qtys as $v) {
     'debug' => !empty($cfg['debug']) && $cfg['debug'],
     'sessionDays' => (int)($cfg['session_timeout_days'] ?? 30),
     'basePath' => $basePath,
+    'scriptName' => $scriptName,
 ]) ?></script>
 <?php if ($page === 'scan'): ?><script src="zbar-wasm.js"></script><?php endif; ?>
 <script src="app.js"></script>
