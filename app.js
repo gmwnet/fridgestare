@@ -668,13 +668,14 @@ if (page === 'home') {
   updateHomeWelcome();
 } else if (page === 'inventory') {
 
-async function loadInvPage() {
-  try {
-    var res = await fetch('/api/inventory');
-    var data = await res.json();
+var invpData = [];
+
+function renderInvPage() {
     var list = $('invpList');
     while (list.firstChild) list.removeChild(list.firstChild);
-    data.items.forEach(function(item) {
+    var q = ($('invpFilter').value || '').toLowerCase();
+    invpData.forEach(function(item) {
+      if (q && item.name.toLowerCase().indexOf(q) < 0) return;
       var name = dom('span', {'class':'invp-name'}, esc(item.name));
       var qty = dom('span', {'class':'invp-qty'}, String(item.qty));
       var take = dom('button', {'class':'invp-btn invp-take', 'data-upc':item.upc, 'data-action':'take'}, '\u2212');
@@ -689,9 +690,18 @@ async function loadInvPage() {
       });
       list.appendChild(dom('div', {'class':'invp-item'}, name, qty, take, add));
     });
+}
+
+async function loadInvPage() {
+  try {
+    var res = await fetch('/api/inventory');
+    var data = await res.json();
+    invpData = data.items;
+    renderInvPage();
   } catch (e) {}
 }
 
+$('invpFilter').addEventListener('input', renderInvPage);
 loadInvPage();
 
 } else if (page === 'ledger') {
