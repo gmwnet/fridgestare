@@ -14,42 +14,86 @@ A lightweight, self-contained grocery inventory and meal planning app. Scan UPC 
 - **Configurable** — Timezone, session timeout, rate limits, Cloudflare Turnstile captcha, API keys
 - **Mobile-first** — Dark theme, touch-friendly UI, native camera integration
 
-## Quick Start
+## Requirements
 
-### Option 1: Drop files on any PHP host
+- PHP 7.4+ with `php-sqlite3` extension
+- Apache with `mod_rewrite` (or nginx with equivalent rewrite rules)
+
+## Deployment
+
+### Option 1: Drop files on any PHP host (simplest)
 
 ```bash
 # Upload all files to your web root
 scp -r . user@host:/var/www/fridgestare/
-# App auto-creates default user "default user" / PIN 1234 on first visit
+
+# Copy the example config and edit it
+cp config.example.php config.php
+# Edit config.php with your settings (timezone, API keys, etc.)
+
+# On first visit, the app auto-creates "Default user" / PIN 1234
 ```
 
-Requirements: PHP 7.4+ with `php-sqlite3`, Apache with `mod_rewrite`.
+The app is self-contained — no database server, no package manager, no build step.
 
-### Option 2: Docker
+### Option 2: Run the deploy script
+
+The deploy script checks that PHP, SQLite, and Apache mod_rewrite are available, then sets file permissions:
+
+```bash
+ssh user@host "cd /var/www/fridgestare && bash deploy.sh"
+```
+
+Run this after uploading files. It doesn't overwrite `config.php` or `groscan.db`.
+
+### Option 3: Docker
 
 ```bash
 docker-compose up -d
 # App available at http://localhost:8080
 ```
 
-### Option 3: Deploy script
+The Docker image:
+- Uses PHP 8.2 Apache with SQLite and zbarimg pre-installed
+- Strips any local API keys from `config.php` and writes clean defaults
+- Stores the SQLite database in a named Docker volume (survives restarts)
+- Exposes port 8080
 
-```bash
-ssh user@host "cd /var/www/fridgestare && bash deploy.sh"
-```
+To stop: `docker-compose down`
+
+### Option 4: Self-contained ZIP
+
+No build step, no package manager. Just download the ZIP from GitHub Releases, unzip, and deploy.
+
+## Configuration
+
+Copy `config.example.php` to `config.php` and edit:
+
+| Setting | Description |
+|---------|-------------|
+| `timezone` | Display timezone for ledger timestamps (e.g. `America/New_York`) |
+| `session_timeout_days` | How long a PIN login lasts (default 30) |
+| `pin_max_attempts` | Failed attempts before lockout (default 5) |
+| `pin_lockout_hours` | Lockout duration after max attempts (default 1) |
+| `default_qty` | Starting quantity for manual adds (default 1) |
+| `debug` | Set to `true` to show scanner debug overlay |
+| `upcitemdb_key` | Optional API key for UPCItemDB product lookup |
+| `turnstile_site_key` | Cloudflare Turnstile site key (free) |
+| `turnstile_secret_key` | Cloudflare Turnstile secret key |
+
+**Note:** `config.php` is excluded from version control. The repo only tracks `config.example.php` (with empty keys) so you never accidentally commit live API keys.
 
 ## First Run
 
 **Important: Change the default PIN immediately.**
 
 1. Log in with `Default user` / PIN `1234`
-2. Go to **Settings → Manage Users**
-3. Create a new user with a name and PIN of your choice, then save
-4. Log out (top-right name → Switch User) and log in as your new user
-5. Go back to **Settings → Manage Users** and delete `Default user`
+2. Go to **Settings → Users**
+3. Create a new user with a name and PIN of your choice
+4. Log out (tap your name in the top bar → Switch User) and log in as your new user
+5. Go back to **Settings → Users** and delete `Default user`
 
-That's it — you now have your own account. The default user is just a starting key.
+That's it. The default user is just a starting key — not meant for daily use.
 
 ## Database Reset
 
@@ -59,7 +103,7 @@ To wipe all data and restore the factory default user:
 php reset-db.php
 ```
 
-This is a **CLI-only** script — it refuses to run via the web. It clears inventory, ledger, products, rate limits, and users, then recreates `Default user` / PIN `1234`.
+This is a **CLI-only** script — it refuses to run via the web. It clears inventory, ledger, products, rate limits, sessions, and users, then recreates `Default user` / PIN `1234`.
 
 ## Highly Recommended: Cloudflare Turnstile (CAPTCHA)
 
