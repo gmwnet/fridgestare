@@ -962,10 +962,16 @@ async function loadUsers() {
   } catch (e) {}
 }
 
+var commonPins = ['0000','1111','2222','3333','4444','5555','6666','7777','8888','9999',
+    '1234','2345','3456','4567','5678','6789','7890','4321','8765','9876',
+    '1212','1122','1230','12345','123456','12345678',
+    '1004','2000','2001','1984','2580','5683','0852','0915','6969'];
+
 $('btnAddUser').addEventListener('click', async function() {
   var name = $('newUserName').value.trim();
   var pin = $('newUserPin').value.trim();
   if (!name || !/^\d{4,8}$/.test(pin)) { showError('Name and 4-8 digit PIN required'); return; }
+  if (commonPins.indexOf(pin) >= 0) { showError('That PIN is too common. Choose something less predictable.'); return; }
   try {
     var r = await fetch('/api/user', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,pin:pin,user_id:currentUser?currentUser.id:null,session_token:sessionToken()})});
     var d = await r.json();
@@ -978,6 +984,7 @@ $('btnChangeMyPin').addEventListener('click', async function() {
   var newPin = $('selfNewPin').value.trim();
   var confirmPin = $('selfConfirmPin').value.trim();
   if (!/^\d{4,8}$/.test(newPin)) { showError('PIN must be 4-8 digits'); return; }
+  if (commonPins.indexOf(newPin) >= 0) { showError('That PIN is too common. Choose something less predictable.'); return; }
   if (newPin !== confirmPin) { showError('PINs do not match'); return; }
   var sel = $('pinUserSelect');
   if (!sel.value) { showError('Select a user.'); return; }

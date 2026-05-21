@@ -570,6 +570,14 @@ function pinExists($db, $pin) {
     return false;
 }
 
+function isWeakPin($pin) {
+    $common = ['0000','1111','2222','3333','4444','5555','6666','7777','8888','9999',
+        '1234','2345','3456','4567','5678','6789','7890','4321','8765','9876',
+        '1212','1122','1230','12345','123456','12345678',
+        '1004','2000','2001','1984','2580','5683','0852','0915','6969'];
+    return in_array($pin, $common, true);
+}
+
 if ($uri === '/api/users' && $method === 'GET') {
     $stmt = $db->query("SELECT id, name, created_at FROM users ORDER BY name");
     jsonResponse(['users' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
@@ -584,6 +592,9 @@ if ($uri === '/api/user' && $method === 'POST') {
     $userId = $session['id'];
     if (!$name || !preg_match('/^\d{4,8}$/', $pin)) {
         jsonResponse(['error' => 'Name and 4-8 digit PIN required'], 400);
+    }
+    if (isWeakPin($pin)) {
+        jsonResponse(['error' => 'That PIN is too common. Choose something less predictable.'], 400);
     }
     if (pinExists($db, $pin)) {
         jsonResponse(['error' => 'That PIN is already in use. Choose a different one.'], 409);
@@ -616,6 +627,9 @@ if (preg_match('#^/api/user/(\d+)$#', $uri, $m) && $method === 'POST') {
     if ($pin !== null) {
         if (!preg_match('/^\d{4,8}$/', $pin)) {
             jsonResponse(['error' => 'PIN must be 4-8 digits'], 400);
+        }
+        if (isWeakPin($pin)) {
+            jsonResponse(['error' => 'That PIN is too common. Choose something less predictable.'], 400);
         }
         if (pinExists($db, $pin)) {
             jsonResponse(['error' => 'That PIN is already in use. Choose a different one.'], 409);
@@ -668,6 +682,9 @@ if ($uri === '/api/user/change-pin' && $method === 'POST') {
     $newPin = $input['new_pin'] ?? '';
     if (!$id || !preg_match('/^\d{4,8}$/', $newPin)) {
         jsonResponse(['error' => 'User ID and 4-8 digit new PIN required'], 400);
+    }
+    if (isWeakPin($newPin)) {
+        jsonResponse(['error' => 'That PIN is too common. Choose something less predictable.'], 400);
     }
     if (pinExists($db, $newPin)) {
         jsonResponse(['error' => 'That PIN is already in use. Choose a different one.'], 409);
