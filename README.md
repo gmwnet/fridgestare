@@ -14,6 +14,19 @@ The scanning system is solid enough that I'm pulling it out for other projects. 
 
 A lightweight, self-contained grocery inventory and meal planning app. Scan UPC barcodes with your phone camera, look up product info, track your stock, and get randomized meal suggestions from what you have on hand.
 
+## Design Philosophy
+
+Everything in this app is intentionally simple — sometimes to the point where it might look like a corner was cut. It wasn't.
+
+- **PINs are 4–8 digits, no email, no passwords.** That's the point. You type 4 numbers and you're in. The only real threat is brute-force, which Turnstile and rate limiting handle.
+- **No permissions, no roles, no admin accounts.** Every user is the same. The ledger tracks who did what, but nobody has special powers. If you can log in, you can use everything.
+- **No undo, no confirmation dialogs for adds/takes.** ADD adds one, TAKE removes one. If you took one too many, just ADD it back. Over-engineering undo is the opposite of simple.
+- **Manual entries create internal barcodes, not names.** If you type "Milk" twice, you get two rows. That's not a bug — it means one might be whole and the other skim. But if you meant the same item, the autocomplete is right there.
+- **Weak PINs like 1234 are rejected, but you can still set 9284.** The goal isn't bank-grade security, it's keeping the neighbor's kid from messing with your inventory.
+- **Users can change anyone's PIN.** Again — no roles. If you're logged in, you can manage users. It's a family tool, not an enterprise.
+
+The rule: if making it more complex doesn't make it noticeably better for a family kitchen, it stays simple.
+
 ## Features
 
 - **Barcode scanning** — Snap a photo of any UPC barcode; client-side ZBar WASM decodes it instantly
