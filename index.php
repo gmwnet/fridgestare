@@ -773,11 +773,11 @@ if ($uri === '/users') $page = 'users';
 if ($uri === '/meal-planner') $page = 'meal-planner';
 $navItems = [
     '/'         => ['label' => 'Scanner', 'icon' => '📷'],
+    '/meal-planner' => ['label' => "What's for Dinner?", 'icon' => '🍳'],
     '/inventory' => ['label' => 'Inventory', 'icon' => '📋'],
     '/ledger'    => ['label' => 'Ledger', 'icon' => '📜'],
-    '/settings'  => ['label' => 'Settings', 'icon' => '⚙️'],
     '/users'     => ['label' => 'Users', 'icon' => '👤'],
-    '/meal-planner' => ['label' => 'Meal Planner', 'icon' => '🍳'],
+    '/settings'  => ['label' => 'Settings', 'icon' => '⚙️'],
 ];
 ?><!DOCTYPE html>
 <html lang="en">
@@ -923,12 +923,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <span style="font-size:18px;font-weight:600;color:#fff">FridgeStare</span>
   </div>
   <a href="/" class="<?= $page === 'scan' ? 'active' : '' ?>">Scanner</a>
+  <a href="/meal-planner" class="<?= $page === 'meal-planner' ? 'active' : '' ?>">What's for Dinner?</a>
   <a href="/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">Inventory</a>
   <a href="/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">Ledger</a>
-  <a href="/meal-planner" class="<?= $page === 'meal-planner' ? 'active' : '' ?>">Meal Planner</a>
-  <a href="/settings" class="<?= $page === 'settings' ? 'active' : '' ?>">Settings</a>
+  <div style="border-top:1px solid #333;margin:4px 0"></div>
   <a href="/users" class="<?= $page === 'users' ? 'active' : '' ?>">Users</a>
-  <a href="#" id="menuSwitchUser" style="border-top:1px solid #333;margin-top:8px">&#x21C4; Switch User</a>
+  <a href="/settings" class="<?= $page === 'settings' ? 'active' : '' ?>">Settings</a>
+  <a href="#" id="menuSwitchUser" style="margin-top:4px">&#x21C4; Switch User</a>
 </div>
 
 <div id="overlay"></div>
@@ -961,7 +962,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <?php elseif ($page === 'meal-planner'): ?>
 
 <div id="mpPage" style="flex:1;overflow-y:auto;padding:12px 16px 60px;position:relative;z-index:10">
-  <h2 style="font-size:18px;margin-bottom:4px">Meal Planner</h2>
+  <h2 style="font-size:18px;margin-bottom:4px">What's for Dinner?</h2>
   <p style="color:#888;font-size:13px;margin-bottom:16px">Pick what sounds good &mdash; we'll suggest a meal from your inventory.</p>
   <div id="mealTagList" class="tag-list" style="justify-content:flex-start;max-width:none"></div>
   <div id="mealSuggestions" style="display:none;margin-top:8px">
