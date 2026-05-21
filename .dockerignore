@@ -1,9 +1,5 @@
 .git
 .gitignore
 .dockerignore
+config.php
 fridgestare.db
-README.md
-LICENSE
-deploy.sh
-reset-db.php
-w:\groscan-spec.md
