@@ -4,6 +4,8 @@ var page = cfg.page;
 var turnstileKey = cfg.turnstileKey;
 var debug = cfg.debug || false;
 var sessionDays = cfg.sessionDays || 30;
+var basePath = cfg.basePath || '';
+function apiUrl(path) { return basePath + path; }
 var turnstileToken = null;
 var currentUser = null;
 var lastUpc = null;
@@ -54,7 +56,7 @@ function initZbar() {
   scanLog('Initializing ZBar WASM...');
 
   zbarWasm.setModuleArgs({
-    locateFile: function(f, d) { return '/zbar.wasm'; }
+    locateFile: function(f, d) { return apiUrl('/zbar.wasm'); }
   });
 
   zbarWasm.getInstance().then(function() {
@@ -121,13 +123,13 @@ function onTurnstileSuccess(token) { turnstileToken = token; }
 async function doAuth(pin) {
   if (turnstileKey && !turnstileToken) { $('pinError').textContent = 'Please complete the captcha.'; $('pinError').style.display = 'block'; return; }
   try {
-    var res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: pin, turnstile_token: turnstileToken }) });
+    var res = await fetch(apiUrl('/api/auth'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: pin, turnstile_token: turnstileToken }) });
     var data = await res.json();
     if (!res.ok) { turnstileToken = null; if (window.turnstile) turnstile.reset(); $('pinError').textContent = data.error || 'Not recognized'; $('pinError').style.display = 'block'; return; }
     currentUser = data.user;
     currentUser.expires_at = Date.now() + sessionDays * 24 * 60 * 60 * 1000;
     localStorage.setItem('groscan_user', JSON.stringify(currentUser));
-    location.href = '/';
+    location.href = apiUrl('/');
   } catch (e) { $('pinError').textContent = 'Network error'; $('pinError').style.display = 'block'; }
 }
 $('pinSubmit').addEventListener('click', function() { doAuth($('pinInput').value.trim()); });
@@ -177,7 +179,7 @@ function expireSession() {
 async function apiAction(upc, action, name, brand, qty) {
   var payload = { upc: upc, action: action, name: name || null, brand: brand || null, user_id: currentUser ? currentUser.id : null, session_token: sessionToken() };
   if (typeof qty !== 'undefined') payload.qty = qty;
-  var res = await fetch('/api/action', {
+  var res = await fetch(apiUrl('/api/action'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -212,7 +214,7 @@ $('btnManual').addEventListener('click', function() {
   if (upc.length < 8) { showError('UPC must be 8\u201314 digits.'); return; }
   $('manualUpc').value = '';
   if (page !== 'scan') {
-    window.location.href = '/scan?upc=' + encodeURIComponent(upc);
+    window.location.href = apiUrl('/scan?upc=' + encodeURIComponent(upc));
   } else {
     lookupUpc(upc);
   }
@@ -368,7 +370,7 @@ async function uploadPhotoFile(file, mySeq) {
     var form = new FormData();
     form.append('photo', blob, 'barcode.jpg');
     form.append('session_token', sessionToken() || '');
-    var res = await fetch('/api/scan-photo', { method: 'POST', body: form });
+    var res = await fetch(apiUrl('/api/scan-photo'), { method: 'POST', body: form });
     if (mySeq !== photoSeq) return;
     var data = await res.json();
     if (mySeq !== photoSeq) return;
@@ -430,7 +432,7 @@ async function saveManualItem() {
       f.textContent = 'Added!';
       f.className = 'show add';
       setTimeout(function() { f.className = ''; }, 1000);
-      await fetch('/api/tag', {
+      await fetch(apiUrl('/api/tag'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ upc: tagUpc, tags: selectedTags, session_token: sessionToken() })
@@ -476,7 +478,7 @@ $('manualName').addEventListener('input', function() {
   if (val.length < 2) { $('manualSuggestions').style.display = 'none'; return; }
   manualSuggestTimer = setTimeout(async function() {
     try {
-      var res = await fetch('/api/search?q=' + encodeURIComponent(val));
+      var res = await fetch(apiUrl('/api/search?q=' + encodeURIComponent(val));
       var data = await res.json();
       var list = $('manualSuggestions');
       while (list.firstChild) list.removeChild(list.firstChild);
@@ -520,7 +522,7 @@ async function lookupUpc(upc) {
   $('banner').style.display = 'none';
   $('btnAdd').disabled = true;
   try {
-    var res = await fetch('/api/lookup?upc=' + encodeURIComponent(upc));
+    var res = await fetch(apiUrl('/api/lookup?upc=' + encodeURIComponent(upc));
     var data = await res.json();
     if (lookupId !== id) return;
     if (!res.ok) { showError(data.error); return; }
@@ -569,7 +571,7 @@ async function doAction(action) {
     if (!data.success) { showError(data.error || 'Action failed'); return; }
     lastProduct.inventory_qty = data.new_qty;
     $('prodQty').textContent = data.new_qty > 0 ? 'In stock: ' + data.new_qty : '';
-    await fetch('/api/tag', {
+    await fetch(apiUrl('/api/tag'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ upc: lastProduct.upc, tags: selectedTags, session_token: sessionToken() })
@@ -621,7 +623,7 @@ $('editName').addEventListener('input', function() {
   if (val.length < 2) { $('suggestions').classList.remove('show'); return; }
   suggestTimer = setTimeout(async function() {
     try {
-      var res = await fetch('/api/search?q=' + encodeURIComponent(val));
+      var res = await fetch(apiUrl('/api/search?q=' + encodeURIComponent(val));
       var data = await res.json();
       var list = $('suggestions');
       while (list.firstChild) list.removeChild(list.firstChild);
@@ -702,7 +704,7 @@ function renderInvPage() {
 
 async function loadInvPage() {
   try {
-    var res = await fetch('/api/inventory');
+    var res = await fetch(apiUrl('/api/inventory');
     var data = await res.json();
     invpData = data.items;
     renderInvPage();
@@ -726,7 +728,7 @@ loadInvPage();
 
 async function loadLedger() {
   try {
-    var res = await fetch('/api/ledger');
+    var res = await fetch(apiUrl('/api/ledger');
     var data = await res.json();
     var list = $('lgList');
     while (list.firstChild) list.removeChild(list.firstChild);
@@ -785,7 +787,7 @@ function onMealTagsChanged() {
 
 async function fetchMealSuggestions() {
   try {
-    var res = await fetch('/api/meal-plan?tags=' + encodeURIComponent(selectedMealTags.join(',')));
+    var res = await fetch(apiUrl('/api/meal-plan?tags=' + encodeURIComponent(selectedMealTags.join(',')));
     var data = await res.json();
     renderMealSuggestions(data);
   } catch (e) { showError('Could not get suggestions.'); }
@@ -840,7 +842,7 @@ $('mealConfirm').addEventListener('click', async function() {
   var f = $('flash');
   f.textContent = 'Removed ' + taken + ' items from inventory. Enjoy your meal!';
   f.className = 'show add';
-  setTimeout(function() { f.className = ''; window.location.href = '/'; }, 2000);
+  setTimeout(function() { f.className = ''; window.location.href = apiUrl('/'); }, 2000);
 });
 
 renderMealTagToggles();
@@ -849,7 +851,7 @@ renderMealTagToggles();
 
 (async function() {
   try {
-    var res = await fetch('/api/config?session_token=' + encodeURIComponent(sessionToken() || ''));
+    var res = await fetch(apiUrl('/api/config?session_token=' + encodeURIComponent(sessionToken() || ''));
     if (res.status === 401) { expireSession(); return; }
     var data = await res.json();
     $('cfg_timezone').value = data.timezone || 'UTC';
@@ -884,7 +886,7 @@ renderMealTagToggles();
     payload.user_id = currentUser ? currentUser.id : null;
     payload.session_token = sessionToken();
     try {
-      var r = await fetch('/api/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      var r = await fetch(apiUrl('/api/config'), {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       var d = await r.json();
       if (d.success) {
         var f = $('flash');
@@ -919,7 +921,7 @@ renderMealTagToggles();
 
 async function loadUsers() {
   try {
-    var res = await fetch('/api/users');
+    var res = await fetch(apiUrl('/api/users');
     var data = await res.json();
     var list = $('usersList');
     while (list.firstChild) list.removeChild(list.firstChild);
@@ -935,7 +937,7 @@ async function loadUsers() {
         del.addEventListener('click', async function() {
           if (!confirm('Delete user "' + u.name + '"?')) return;
           try {
-            var r = await fetch('/api/user/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:u.id,user_id:currentUser?currentUser.id:null,session_token:sessionToken()})});
+            var r = await fetch(apiUrl('/api/user/delete'), {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:u.id,user_id:currentUser?currentUser.id:null,session_token:sessionToken()})});
             var d = await r.json();
             if (d.success) loadUsers(); else showError(d.error||'Delete failed');
           } catch (e) { showError('Network error'); }
@@ -968,7 +970,7 @@ $('btnAddUser').addEventListener('click', async function() {
   if (!name || !/^\d{4,8}$/.test(pin)) { showError('Name and 4-8 digit PIN required'); return; }
   if (commonPins.indexOf(pin) >= 0) { showError('That PIN is too common. Choose something less predictable.'); return; }
   try {
-    var r = await fetch('/api/user', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,pin:pin,user_id:currentUser?currentUser.id:null,session_token:sessionToken()})});
+    var r = await fetch(apiUrl('/api/user'), {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,pin:pin,user_id:currentUser?currentUser.id:null,session_token:sessionToken()})});
     var d = await r.json();
     if (d.success) { $('newUserName').value=''; $('newUserPin').value=''; loadUsers(); }
     else showError(d.error||'Add failed');
@@ -984,7 +986,7 @@ $('btnChangeMyPin').addEventListener('click', async function() {
   var sel = $('pinUserSelect');
   if (!sel.value) { showError('Select a user.'); return; }
   try {
-    var r = await fetch('/api/user/change-pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:parseInt(sel.value,10),new_pin:newPin,session_token:sessionToken()})});
+    var r = await fetch(apiUrl('/api/user/change-pin'), {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:parseInt(sel.value,10),new_pin:newPin,session_token:sessionToken()})});
     var d = await r.json();
     if (d.success) { $('selfNewPin').value=''; $('selfConfirmPin').value=''; showError('PIN changed.'); }
     else showError(d.error||'Change failed');

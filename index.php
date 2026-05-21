@@ -251,8 +251,19 @@ function checkSession($token) {
 
 // --- Router ---
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-$method = $_SERVER['REQUEST_METHOD'];
 $uri = is_string($uri) ? rtrim($uri, '/') : '/';
+$method = $_SERVER['REQUEST_METHOD'];
+
+// Detect base path for subfolder deployment
+$basePath = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+// Strip base path from URI for route matching
+$route = $uri;
+if ($basePath && strpos($uri, $basePath) === 0) {
+    $route = substr($uri, strlen($basePath)) ?: '/';
+}
+
+// Use $route for all API/page matching below
+$uri = $route;
 
 // --- API: Lookup ---
 if ($uri === '/api/lookup' && $method === 'GET') {
@@ -880,10 +891,10 @@ $navItems = [
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>FridgeStare</title>
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="manifest" href="/site.webmanifest">
+<link rel="apple-touch-icon" sizes="180x180" href="<?= $basePath ?>/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="<?= $basePath ?>/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="<?= $basePath ?>/favicon-16x16.png">
+<link rel="manifest" href="<?= $basePath ?>/site.webmanifest">
 <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -1012,7 +1023,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="navBar">
   <button id="menuBtn">&#9776;</button>
-  <img src="/favicon-32x32.png" alt="" style="width:24px;height:24px;margin-right:8px;border-radius:4px">
+  <img src="<?= $basePath ?>/favicon-32x32.png" alt="" style="width:24px;height:24px;margin-right:8px;border-radius:4px">
   <span id="pageTitle">FridgeStare</span>
   <span style="display:flex;align-items:center;margin-left:auto"><span id="userBadge"></span><span id="logoutIcon" style="cursor:pointer;padding:4px 6px 4px 0;color:#ccc;display:none">
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1025,17 +1036,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="sideMenu">
   <div style="display:flex;align-items:center;gap:10px;padding:12px 20px 10px;border-bottom:1px solid #333;margin-bottom:4px">
-    <img src="/favicon-32x32.png" alt="" style="width:28px;height:28px;border-radius:4px">
+    <img src="<?= $basePath ?>/favicon-32x32.png" alt="" style="width:28px;height:28px;border-radius:4px">
     <span style="font-size:18px;font-weight:600;color:#fff">FridgeStare</span>
   </div>
-  <a href="/" class="<?= $page === 'home' ? 'active' : '' ?>">🏠 Home</a>
-  <a href="/scan" class="<?= $page === 'scan' ? 'active' : '' ?>">📷 Scanner</a>
-  <a href="/meal-planner" class="<?= $page === 'meal-planner' ? 'active' : '' ?>">🍽️ What's for Dinner?</a>
-  <a href="/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">📋 Inventory</a>
-  <a href="/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">📜 Ledger</a>
+  <a href="<?= $basePath ?>/" class="<?= $page === 'home' ? 'active' : '' ?>">🏠 Home</a>
+  <a href="<?= $basePath ?>/scan" class="<?= $page === 'scan' ? 'active' : '' ?>">📷 Scanner</a>
+  <a href="<?= $basePath ?>/meal-planner" class="<?= $page === 'meal-planner' ? 'active' : '' ?>">🍽️ What's for Dinner?</a>
+  <a href="<?= $basePath ?>/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">📋 Inventory</a>
+  <a href="<?= $basePath ?>/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">📜 Ledger</a>
   <div style="border-top:1px solid #333;margin:4px 0"></div>
-  <a href="/settings" class="<?= $page === 'settings' ? 'active' : '' ?>">&#x2699;&#xFE0F; Settings</a>
-  <a href="/help" class="<?= $page === 'help' ? 'active' : '' ?>">&#x2753; Help</a>
+  <a href="<?= $basePath ?>/settings" class="<?= $page === 'settings' ? 'active' : '' ?>">&#x2699;&#xFE0F; Settings</a>
+  <a href="<?= $basePath ?>/help" class="<?= $page === 'help' ? 'active' : '' ?>">&#x2753; Help</a>
   <a href="#" id="menuSwitchUser" style="margin-top:4px">&#x21C4; Switch User</a>
 </div>
 
@@ -1055,17 +1066,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <?php if ($page === 'home'): ?>
 
 <div id="homePage">
-  <div style="text-align:center;margin-top:28px;margin-bottom:4px"><img src="/apple-touch-icon.png" alt="FridgeStare" style="width:72px;height:72px;border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.4)"></div>
+  <div style="text-align:center;margin-top:28px;margin-bottom:4px"><img src="<?= $basePath ?>/apple-touch-icon.png" alt="FridgeStare" style="width:72px;height:72px;border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.4)"></div>
   <div id="homeWelcome" style="font-size:22px;font-weight:600;text-align:center;margin-bottom:8px;color:#fff"></div>
   <div class="home-grid">
-    <a href="/scan" class="home-card home-card-lg"><span class="home-icon">📷</span><span class="home-label">Scanner</span></a>
-    <a href="/meal-planner" class="home-card home-card-lg"><span class="home-icon">🍽️</span><span class="home-label">What's for Dinner?</span></a>
+    <a href="<?= $basePath ?>/scan" class="home-card home-card-lg"><span class="home-icon">📷</span><span class="home-label">Scanner</span></a>
+    <a href="<?= $basePath ?>/meal-planner" class="home-card home-card-lg"><span class="home-icon">🍽️</span><span class="home-label">What's for Dinner?</span></a>
   </div>
   <div class="home-grid home-grid-sm">
-    <a href="/inventory" class="home-card home-card-sm"><span class="home-icon">📋</span><span class="home-label">Inventory</span></a>
-    <a href="/ledger" class="home-card home-card-sm"><span class="home-icon">📜</span><span class="home-label">Ledger</span></a>
-    <a href="/settings" class="home-card home-card-sm"><span class="home-icon">⚙️</span><span class="home-label">Settings</span></a>
-    <a href="/help" class="home-card home-card-sm"><span class="home-icon">❓</span><span class="home-label">Help</span></a>
+    <a href="<?= $basePath ?>/inventory" class="home-card home-card-sm"><span class="home-icon">📋</span><span class="home-label">Inventory</span></a>
+    <a href="<?= $basePath ?>/ledger" class="home-card home-card-sm"><span class="home-icon">📜</span><span class="home-label">Ledger</span></a>
+    <a href="<?= $basePath ?>/settings" class="home-card home-card-sm"><span class="home-icon">⚙️</span><span class="home-label">Settings</span></a>
+    <a href="<?= $basePath ?>/help" class="home-card home-card-sm"><span class="home-icon">❓</span><span class="home-label">Help</span></a>
   </div>
 </div>
 
@@ -1189,7 +1200,7 @@ foreach ($qtys as $v) {
     <button id="btnSaveSettings">Save Settings</button>
     <div style="margin-top:24px;padding-top:16px;border-top:1px solid #333">
       <p style="color:#888;font-size:13px;margin-bottom:8px">User accounts and PIN management</p>
-      <a href="/users" style="display:inline-block;padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;text-decoration:none;cursor:pointer">Manage Users &rarr;</a>
+      <a href="<?= $basePath ?>/users" style="display:inline-block;padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;text-decoration:none;cursor:pointer">Manage Users &rarr;</a>
     </div>
   </div>
   <div id="settingsHelpPopup"></div>
@@ -1333,6 +1344,7 @@ foreach ($qtys as $v) {
     'turnstileKey' => $cfg['turnstile_site_key'] ?? '',
     'debug' => !empty($cfg['debug']) && $cfg['debug'],
     'sessionDays' => (int)($cfg['session_timeout_days'] ?? 30),
+    'basePath' => $basePath,
 ]) ?></script>
 <?php if ($page === 'scan'): ?><script src="zbar-wasm.js"></script><?php endif; ?>
 <script src="app.js"></script>
