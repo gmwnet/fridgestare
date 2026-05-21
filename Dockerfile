@@ -17,8 +17,8 @@ COPY . /var/www/html/
 # Use example config as default (no real API keys in the image)
 RUN cp /var/www/html/config.example.php /var/www/html/config.php
 
-# Ensure DB is writable (created on first request)
-RUN touch /var/www/html/fridgestare.db && chmod 666 /var/www/html/fridgestare.db
+# Ensure DB is writable by Apache (created on first request)
+RUN touch /var/www/html/fridgestare.db && chown www-data:www-data /var/www/html/fridgestare.db && chmod 664 /var/www/html/fridgestare.db
 
 # Apache already listens on 80
 EXPOSE 80
