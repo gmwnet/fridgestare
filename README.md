@@ -61,6 +61,19 @@ php reset-db.php
 
 This is a **CLI-only** script — it refuses to run via the web. It clears inventory, ledger, products, rate limits, and users, then recreates `Default user` / PIN `1234`.
 
+## Highly Recommended: Cloudflare Turnstile (CAPTCHA)
+
+PIN auth is intentionally kept simple — no email, no password managers. That also means a 4-digit PIN is not strong on its own. Adding Turnstile blocks automated brute-force attempts, which is the real threat.
+
+It's **free** for any amount of traffic. Takes 2 minutes:
+
+1. Go to [dash.cloudflare.com](https://dash.cloudflare.com) → **Turnstile** → **Add Site**
+2. Enter your domain → **Widget type: Non-interactive** → **Create**
+3. Copy the **Site Key** and **Secret Key**
+4. In **Settings** → **Danger Zone**, paste both keys and save
+
+If you skip it, the CAPTCHA simply doesn't appear — the app works fine either way. But for any public-facing install, it's strongly advised.
+
 ## Tech Stack
 
 - PHP (single-file backend with SQLite)
