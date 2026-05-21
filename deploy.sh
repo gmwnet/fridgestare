@@ -46,10 +46,10 @@ fi
 # Set permissions
 chmod 644 index.php app.js zbar-wasm.js zbar.wasm reset-db.php config.php .htaccess favicon.ico favicon-*.png apple-touch-icon.png android-chrome-*.png site.webmanifest 2>/dev/null
 chmod 755 . 2>/dev/null
-if [ ! -f groscan.db ]; then
-    touch groscan.db
+if [ ! -f fridgestare.db ]; then
+    touch fridgestare.db
 fi
-chmod 666 groscan.db 2>/dev/null
+chmod 666 fridgestare.db 2>/dev/null
 
 echo ""
 echo "Permissions set."

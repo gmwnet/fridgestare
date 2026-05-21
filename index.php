@@ -10,7 +10,7 @@ set_exception_handler(function($e) {
     exit;
 });
 
-$dbPath = __DIR__ . '/groscan.db';
+$dbPath = __DIR__ . '/fridgestare.db';
 $cfg = [];
 if (file_exists(__DIR__ . '/config.php')) {
     $cfg = include __DIR__ . '/config.php';

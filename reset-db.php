@@ -7,7 +7,7 @@ if (php_sapi_name() !== 'cli') {
     die("This script must be run from the command line.\n");
 }
 
-$dbPath = __DIR__ . '/groscan.db';
+$dbPath = __DIR__ . '/fridgestare.db';
 
 if (!file_exists($dbPath)) {
     die("Database not found at: $dbPath\n");

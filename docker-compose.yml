@@ -4,7 +4,7 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - fridgestare-data:/var/www/html/groscan.db
+      - fridgestare-data:/var/www/html/fridgestare.db
     restart: unless-stopped
 
 volumes:

@@ -1,7 +1,7 @@
 .git
 .gitignore
 .dockerignore
-groscan.db
+fridgestare.db
 README.md
 LICENSE
 deploy.sh

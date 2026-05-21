@@ -44,7 +44,7 @@ The deploy script checks that PHP, SQLite, and Apache mod_rewrite are available,
 ssh user@host "cd /var/www/fridgestare && bash deploy.sh"
 ```
 
-Run this after uploading files. It doesn't overwrite `config.php` or `groscan.db`.
+Run this after uploading files. It doesn't overwrite `config.php` or `fridgestare.db`.
 
 ### Option 3: Docker
 
