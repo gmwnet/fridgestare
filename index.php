@@ -143,7 +143,7 @@ try { $db->exec("ALTER TABLE products ADD COLUMN tags TEXT"); } catch (PDOExcept
 $countStmt = $db->query("SELECT COUNT(*) FROM users");
 if ($countStmt && (int)$countStmt->fetchColumn() === 0) {
     $defaultHash = password_hash('1234', PASSWORD_DEFAULT);
-    $stmt = $db->prepare("INSERT INTO users (name, pin_hash) VALUES ('default user', ?)");
+    $stmt = $db->prepare("INSERT INTO users (name, pin_hash) VALUES ('Default user', ?)");
     $stmt->execute([$defaultHash]);
 }
 
@@ -590,10 +590,11 @@ if (preg_match('#^/api/user/(\d+)$#', $uri, $m) && $method === 'POST') {
     jsonResponse(['success' => true]);
 }
 
-if (preg_match('#^/api/user/(\d+)$#', $uri, $m) && $method === 'DELETE') {
-    $id = (int)$m[1];
+if ($uri === '/api/user/delete' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
+    $id = isset($input['id']) ? (int)$input['id'] : null;
     $userId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+    if (!$id) jsonResponse(['error' => 'User ID required'], 400);
 
     $stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
     $stmt->execute([$id]);
@@ -818,7 +819,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #scanPrompt .hint{color:#888;font-size:14px;margin-top:6px}
 #result{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);padding:10px 12px;transform:translateY(100%);transition:transform .3s}
 #result.show{transform:translateY(0)}
-.edit-field{width:100%;padding:14px 16px;font-size:20px;background:#222;border:1px solid #555;border-radius:8px;color:#fff;margin-bottom:6px;outline:none}
+.edit-field{width:100%;padding:10px 12px;font-size:15px;background:#222;border:1px solid #555;border-radius:6px;color:#fff;outline:none}
 .edit-field:focus{border-color:#007aff}
 .edit-field::placeholder{color:#666}
 #suggestions{position:absolute;left:0;right:0;top:100%;background:#222;border:1px solid #555;border-top:none;border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;display:none;z-index:10}
@@ -903,6 +904,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .usr-name{flex:1;font-size:15px}
 .usr-del{padding:6px 12px;font-size:13px;border:none;border-radius:6px;background:#ff3b30;color:#fff;cursor:pointer}
 #btnSaveSettings{padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer;margin-top:12px;touch-action:manipulation}
+.help-icon{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#444;color:#aaa;font-size:11px;font-weight:700;cursor:pointer;margin-left:4px;vertical-align:middle;line-height:1;touch-action:manipulation;user-select:none}
+.help-icon:active{background:#666}
+#settingsHelpPopup{position:fixed;z-index:400;background:#222;border:1px solid #555;border-radius:8px;padding:10px 14px;font-size:13px;color:#ccc;max-width:280px;line-height:1.4;display:none;box-shadow:0 4px 16px rgba(0,0,0,.5);pointer-events:none}
 #homePage{flex:1;overflow-y:auto;padding:12px 16px 60px}
 .home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:400px;margin:0 auto;padding-top:8px}
 .home-grid-sm{grid-template-columns:repeat(4,1fr);gap:8px;max-width:400px;margin:12px auto 0}
@@ -980,6 +984,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="invPage">
   <h2>Inventory</h2>
+  <div style="display:flex;gap:8px;margin-bottom:8px">
+    <input type="text" id="invpFilter" placeholder="Filter items..." style="flex:1;padding:10px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;outline:none">
+    <button id="invpExport" style="padding:10px 14px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;font-size:15px;cursor:pointer;white-space:nowrap">CSV</button>
+  </div>
   <div id="invpList"></div>
 </div>
 
@@ -1012,7 +1020,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <h2>Settings</h2>
   <div id="settingsForm">
     <div class="set-row">
-      <span class="set-label">Timezone</span>
+      <span class="set-label">Timezone <span class="help-icon" data-tip="Display timezone for ledger and inventory timestamps.">?</span></span>
       <span class="set-val"><select id="cfg_timezone"><?php
 $zones = DateTimeZone::listIdentifiers();
 $currentTz = $cfg['timezone'] ?? 'UTC';
@@ -1023,7 +1031,7 @@ foreach ($zones as $zone) {
 ?></select></span>
     </div>
     <div class="set-row">
-      <span class="set-label">Session Timeout (days)</span>
+      <span class="set-label">Session Timeout (days) <span class="help-icon" data-tip="How long a PIN login lasts before re-authentication is required.">?</span></span>
       <span class="set-val"><select id="cfg_session_timeout_days"><?php
 $timeouts = [7,14,30,60,90,365];
 $curSess = (int)($cfg['session_timeout_days'] ?? 30);
@@ -1035,7 +1043,7 @@ foreach ($timeouts as $v) {
 ?></select></span>
     </div>
     <div class="set-row">
-      <span class="set-label">PIN Max Attempts</span>
+      <span class="set-label">PIN Max Attempts <span class="help-icon" data-tip="Number of incorrect PIN attempts before temporary lockout.">?</span></span>
       <span class="set-val"><select id="cfg_pin_max_attempts"><?php
 $attempts = [1,2,3,5,10];
 $curAtt = (int)($cfg['pin_max_attempts'] ?? 3);
@@ -1046,7 +1054,7 @@ foreach ($attempts as $v) {
 ?></select></span>
     </div>
     <div class="set-row">
-      <span class="set-label">PIN Lockout (hours)</span>
+      <span class="set-label">PIN Lockout (hours) <span class="help-icon" data-tip="How long the lockout lasts after max failed attempts.">?</span></span>
       <span class="set-val"><select id="cfg_pin_lockout_hours"><?php
 $lockouts = [1,2,4,8,12,24];
 $curLock = (int)($cfg['pin_lockout_hours'] ?? 1);
@@ -1058,7 +1066,7 @@ foreach ($lockouts as $v) {
 ?></select></span>
     </div>
     <div class="set-row">
-      <span class="set-label">Default Quantity</span>
+      <span class="set-label">Default Quantity <span class="help-icon" data-tip="Starting quantity when adding items manually.">?</span></span>
       <span class="set-val"><select id="cfg_default_qty"><?php
 $qtys = [1,2,3,5,10];
 $curQty = (int)($cfg['default_qty'] ?? 1);
@@ -1069,23 +1077,23 @@ foreach ($qtys as $v) {
 ?></select></span>
     </div>
     <div class="set-row">
-      <span class="set-label">Debug Mode</span>
+      <span class="set-label">Debug Mode <span class="help-icon" data-tip="Shows a green debug overlay on the scan page for troubleshooting barcode scanning.">?</span></span>
       <span class="set-val"><input type="checkbox" id="cfg_debug"></span>
     </div>
 
-    <h3 style="color:#ff3b30;font-size:16px;margin:20px 0 8px;border-top:1px solid #333;padding-top:12px">Danger Zone</h3>
+    <h3 style="color:#ff3b30;font-size:16px;margin:20px 0 8px;padding-top:12px">Danger Zone</h3>
     <p style="color:#888;font-size:13px;margin-bottom:12px">These settings affect external services and security.</p>
 
     <div class="set-row">
-      <span class="set-label">Turnstile Site Key</span>
+      <span class="set-label">Turnstile Site Key <span class="help-icon" data-tip="Cloudflare Turnstile site key for CAPTCHA on the PIN login screen. Leave blank to disable.">?</span></span>
       <span class="set-val"><input type="text" id="cfg_turnstile_site_key" placeholder="Cloudflare Turnstile Site Key"></span>
     </div>
     <div class="set-row">
-      <span class="set-label">Turnstile Secret Key</span>
+      <span class="set-label">Turnstile Secret Key <span class="help-icon" data-tip="Cloudflare Turnstile secret key. Required if Site Key is set.">?</span></span>
       <span class="set-val"><input type="text" id="cfg_turnstile_secret_key" placeholder="Cloudflare Turnstile Secret Key"></span>
     </div>
     <div class="set-row">
-      <span class="set-label">UPCItemDB Key</span>
+      <span class="set-label">UPCItemDB Key <span class="help-icon" data-tip="Optional API key for UPCItemDB product lookup. Fallback when Open Food Facts has no data.">?</span></span>
       <span class="set-val"><input type="text" id="cfg_upcitemdb_key" placeholder="UPCItemDB API Key (optional)"></span>
     </div>
 
@@ -1095,24 +1103,45 @@ foreach ($qtys as $v) {
       <a href="/users" style="display:inline-block;padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;text-decoration:none;cursor:pointer">Manage Users &rarr;</a>
     </div>
   </div>
+  <div id="settingsHelpPopup"></div>
 </div>
 
 <?php elseif ($page === 'users'): ?>
 
 <div id="usersPage">
   <h2>Users</h2>
-  <div id="usersList"></div>
-  <div id="changePinForm" style="margin-top:20px;padding-top:16px;border-top:1px solid #333">
-    <h3 style="font-size:16px;margin-bottom:12px">Change My PIN</h3>
-    <input type="tel" id="selfNewPin" class="edit-field" placeholder="New PIN (4-8 digits)" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:8px">
-    <input type="tel" id="selfConfirmPin" class="edit-field" placeholder="Confirm new PIN" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:12px">
+  <div id="changePinForm">
+    <h3 style="font-size:16px;margin-bottom:12px">Change PIN</h3>
+    <div class="set-row">
+      <span class="set-label">User</span>
+      <span class="set-val"><select id="pinUserSelect" class="edit-field"></select></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">New PIN</span>
+      <span class="set-val"><input type="tel" id="selfNewPin" class="edit-field" placeholder="4-8 digits" inputmode="numeric" pattern="[0-9]*" maxlength="8"></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">Confirm PIN</span>
+      <span class="set-val"><input type="tel" id="selfConfirmPin" class="edit-field" placeholder="4-8 digits" inputmode="numeric" pattern="[0-9]*" maxlength="8"></span>
+    </div>
     <button id="btnChangeMyPin" style="padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;cursor:pointer">Change PIN</button>
   </div>
   <div id="usersForm" style="margin-top:20px;padding-top:16px;border-top:1px solid #333">
     <h3 style="font-size:16px;margin-bottom:12px">Add User</h3>
-    <input type="text" id="newUserName" class="edit-field" placeholder="Name" style="margin-bottom:8px">
-    <input type="tel" id="newUserPin" class="edit-field" placeholder="PIN (4-8 digits)" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:12px">
+    <div class="set-row">
+      <span class="set-label">Name</span>
+      <span class="set-val"><input type="text" id="newUserName" class="edit-field" placeholder="Username"></span>
+    </div>
+    <div class="set-row">
+      <span class="set-label">PIN</span>
+      <span class="set-val"><input type="tel" id="newUserPin" class="edit-field" placeholder="4-8 digits" inputmode="numeric" pattern="[0-9]*" maxlength="8"></span>
+    </div>
     <button id="btnAddUser" style="padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer">Add User</button>
+  </div>
+  <div style="margin-top:24px;padding-top:16px;border-top:1px solid #333">
+    <h3 style="color:#ff3b30;font-size:16px;margin-bottom:8px">Danger Zone</h3>
+    <p style="color:#888;font-size:13px;margin-bottom:12px">Deleting a user removes them from the user list but preserves their ledger history.</p>
+    <div id="usersList"></div>
   </div>
 </div>
 
@@ -1121,12 +1150,16 @@ foreach ($qtys as $v) {
 <div id="helpPage" style="flex:1;overflow-y:auto;padding:12px 16px 60px;position:relative;z-index:10">
   <h2 style="font-size:18px;margin-bottom:12px">Help</h2>
   <div style="color:#ccc;font-size:14px;line-height:1.6">
-    <p style="margin-bottom:10px"><strong>Getting Started</strong><br>Log in with your PIN, then head to the Scanner to start adding items.</p>
-    <p style="margin-bottom:10px"><strong>Scanning Barcodes</strong><br>Tap the 📷 button on the Scanner page to open your camera and snap a photo of a UPC barcode. The app decodes it client-side and looks up product info.</p>
-    <p style="margin-bottom:10px"><strong>Manual Entry</strong><br>No barcode? Tap "No barcode? Add manually" to enter product details and pick meal-planning tags.</p>
-    <p style="margin-bottom:10px"><strong>What's for Dinner?</strong><br>Select tags for the meal components you want, and the app will suggest a randomized combination from your current inventory. Check items to take and tap "Confirm &amp; Take Selected".</p>
-    <p style="margin-bottom:10px"><strong>Inventory</strong><br>View and adjust your current stock with live +/- buttons.</p>
-    <p style="margin-bottom:10px"><strong>Ledger</strong><br>Audit trail of all add/take and admin actions, with timestamps and usernames.</p>
+    <p style="margin-bottom:10px"><strong>Getting Started</strong><br>Log in with your PIN, then head to the Scanner to start adding items. Each family member gets their own PIN so actions are attributed in the Ledger.</p>
+    <p style="margin-bottom:10px"><strong>PIN Login &amp; Switch User</strong><br>On first visit (or after logging out), enter your 4–8 digit PIN. The app remembers you for the session timeout duration set in Settings. To switch users, tap your name in the top bar or use "Switch User" in the side menu. Rate limiting locks out an IP after too many failed attempts — see Emergency Unlock below.</p>
+    <p style="margin-bottom:10px"><strong>Scanning Barcodes</strong><br>From the Scanner page, tap the 📷 button to open your native camera and snap a photo of a UPC barcode. The app decodes it client-side using ZBar WASM and looks up product info via Open Food Facts. If the lookup fails, you can enter a name and brand manually. Already-scanned items are cached locally for fast repeat scans.</p>
+    <p style="margin-bottom:10px"><strong>Manual Entry</strong><br>No barcode? Tap "No barcode? Add manually" to enter product details. You can set a name, brand, quantity, and assign meal-planning tags. The item gets an internal ID so it behaves like any scanned product.</p>
+    <p style="margin-bottom:10px"><strong>Tags &amp; Meal Planning</strong><br>Each item can have tags: Protein, Main, Sauce, Side, Snack, Dessert, Use Soon, Staple. Tags are assigned when adding an item or editing it after a scan. The "What's for Dinner?" page uses these tags to suggest meals — pick which components you want and get a randomized combination from your actual inventory. "Use Soon" items get 3× the weight so they appear first.</p>
+    <p style="margin-bottom:10px"><strong>Inventory</strong><br>View your current stock with live +/- buttons. Use the filter box to quickly find items by name. Quantities update in real time and are recorded in the Ledger.</p>
+    <p style="margin-bottom:10px"><strong>Ledger</strong><br>Audit trail of every add, take, and admin action with timestamps and usernames. Admin actions (config changes, user management) appear in blue. Use it to see who ate what and when.</p>
+    <p style="margin-bottom:10px"><strong>Managing Users</strong><br>Visit Settings → Manage Users to add or delete family members, or change any user's PIN. Deleting a user preserves their ledger history (usernames are stored as text, not relational links). You cannot delete the last remaining user.</p>
+    <p style="margin-bottom:10px"><strong>Settings</strong><br>Configure timezone, session timeout, PIN rate limits, and default quantity. Set Cloudflare Turnstile keys for captcha on PIN entry, and a UPCItemDB key as a secondary product lookup source. Hover or tap the "?" icons on each field for a description. The Danger Zone at the bottom holds API keys — treat them like passwords.</p>
+    <p style="margin-bottom:10px"><strong>Emergency Unlock</strong><br>If rate limiting locks everyone out: SSH into the server, set <code>emergency_unlock =&gt; true</code> in <code>config.php</code>, then hit the unlock endpoint (ask an admin). Reset the flag to <code>false</code> immediately after.</p>
   </div>
 </div>
 

@@ -668,13 +668,14 @@ if (page === 'home') {
   updateHomeWelcome();
 } else if (page === 'inventory') {
 
-async function loadInvPage() {
-  try {
-    var res = await fetch('/api/inventory');
-    var data = await res.json();
+var invpData = [];
+
+function renderInvPage() {
     var list = $('invpList');
     while (list.firstChild) list.removeChild(list.firstChild);
-    data.items.forEach(function(item) {
+    var q = ($('invpFilter').value || '').toLowerCase();
+    invpData.forEach(function(item) {
+      if (q && item.name.toLowerCase().indexOf(q) < 0) return;
       var name = dom('span', {'class':'invp-name'}, esc(item.name));
       var qty = dom('span', {'class':'invp-qty'}, String(item.qty));
       var take = dom('button', {'class':'invp-btn invp-take', 'data-upc':item.upc, 'data-action':'take'}, '\u2212');
@@ -689,9 +690,28 @@ async function loadInvPage() {
       });
       list.appendChild(dom('div', {'class':'invp-item'}, name, qty, take, add));
     });
+}
+
+async function loadInvPage() {
+  try {
+    var res = await fetch('/api/inventory');
+    var data = await res.json();
+    invpData = data.items;
+    renderInvPage();
   } catch (e) {}
 }
 
+$('invpFilter').addEventListener('input', renderInvPage);
+$('invpExport').addEventListener('click', function() {
+  var csv = 'Name,Quantity\n';
+  invpData.forEach(function(item) { csv += '"' + item.name.replace(/"/g,'""') + '",' + item.qty + '\n'; });
+  var blob = new Blob([csv], {type:'text/csv'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'fridgestare-inventory.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
 loadInvPage();
 
 } else if (page === 'ledger') {
@@ -865,6 +885,24 @@ renderMealTagToggles();
       else showError(d.error || 'Save failed');
     } catch (e) { showError('Network error'); }
   });
+  document.addEventListener('click', function(e) {
+    var target = e.target.closest('.help-icon');
+    var popup = $('settingsHelpPopup');
+    if (!popup) return;
+    if (target) {
+      e.preventDefault();
+      popup.textContent = target.dataset.tip;
+      var rect = target.getBoundingClientRect();
+      var left = rect.left;
+      if (left + 290 > window.innerWidth) left = window.innerWidth - 290;
+      if (left < 8) left = 8;
+      popup.style.left = left + 'px';
+      popup.style.top = (rect.bottom + 6) + 'px';
+      popup.style.display = 'block';
+    } else {
+      popup.style.display = 'none';
+    }
+  });
 })();
 
 } else if (page === 'users') {
@@ -887,7 +925,7 @@ async function loadUsers() {
         del.addEventListener('click', async function() {
           if (!confirm('Delete user "' + u.name + '"?')) return;
           try {
-            var r = await fetch('/api/user/' + u.id, {method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:currentUser?currentUser.id:null})});
+            var r = await fetch('/api/user/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:u.id,user_id:currentUser?currentUser.id:null})});
             var d = await r.json();
             if (d.success) loadUsers(); else showError(d.error||'Delete failed');
           } catch (e) { showError('Network error'); }
@@ -896,6 +934,16 @@ async function loadUsers() {
       }
       list.appendChild(row);
     });
+    // Populate PIN change dropdown
+    var sel = $('pinUserSelect');
+    if (sel) {
+      while (sel.firstChild) sel.removeChild(sel.firstChild);
+      data.users.forEach(function(u) {
+        var opt = dom('option', {'value':u.id}, esc(u.name));
+        if (currentUser && u.id === currentUser.id) opt.setAttribute('selected', 'selected');
+        sel.appendChild(opt);
+      });
+    }
   } catch (e) {}
 }
 
@@ -916,9 +964,10 @@ $('btnChangeMyPin').addEventListener('click', async function() {
   var confirmPin = $('selfConfirmPin').value.trim();
   if (!/^\d{4,8}$/.test(newPin)) { showError('PIN must be 4-8 digits'); return; }
   if (newPin !== confirmPin) { showError('PINs do not match'); return; }
-  if (!currentUser) { showError('Not logged in'); return; }
+  var sel = $('pinUserSelect');
+  if (!sel.value) { showError('Select a user.'); return; }
   try {
-    var r = await fetch('/api/user/change-pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:currentUser.id,new_pin:newPin})});
+    var r = await fetch('/api/user/change-pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:parseInt(sel.value,10),new_pin:newPin})});
     var d = await r.json();
     if (d.success) { $('selfNewPin').value=''; $('selfConfirmPin').value=''; showError('PIN changed.'); }
     else showError(d.error||'Change failed');
