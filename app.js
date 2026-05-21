@@ -905,7 +905,7 @@ async function loadUsers() {
         del.addEventListener('click', async function() {
           if (!confirm('Delete user "' + u.name + '"?')) return;
           try {
-            var r = await fetch('/api/user/' + u.id, {method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:currentUser?currentUser.id:null})});
+            var r = await fetch('/api/user/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:u.id,user_id:currentUser?currentUser.id:null})});
             var d = await r.json();
             if (d.success) loadUsers(); else showError(d.error||'Delete failed');
           } catch (e) { showError('Network error'); }

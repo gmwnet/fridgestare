@@ -590,10 +590,11 @@ if (preg_match('#^/api/user/(\d+)$#', $uri, $m) && $method === 'POST') {
     jsonResponse(['success' => true]);
 }
 
-if (preg_match('#^/api/user/(\d+)$#', $uri, $m) && $method === 'DELETE') {
-    $id = (int)$m[1];
+if ($uri === '/api/user/delete' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
+    $id = isset($input['id']) ? (int)$input['id'] : null;
     $userId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+    if (!$id) jsonResponse(['error' => 'User ID required'], 400);
 
     $stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
     $stmt->execute([$id]);
