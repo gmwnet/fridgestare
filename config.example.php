@@ -1,8 +1,8 @@
 <?php
 return array (
   'upcitemdb_key' => '',
-  'turnstile_site_key' => '0x4AAAAAADSo1Ej-yaGGYQ1C',
-  'turnstile_secret_key' => '0x4AAAAAADSo1OzMcRiKS1_n7B-GeaOQ2Y4',
+  'turnstile_site_key' => '',
+  'turnstile_secret_key' => '',
   'timezone' => 'America/Los_Angeles',
   'session_timeout_days' => 14,
   'pin_max_attempts' => 5,

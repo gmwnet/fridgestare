@@ -11,7 +11,12 @@ set_exception_handler(function($e) {
 });
 
 $dbPath = __DIR__ . '/groscan.db';
-$cfg = (file_exists(__DIR__ . '/config.php')) ? include __DIR__ . '/config.php' : [];
+$cfg = [];
+if (file_exists(__DIR__ . '/config.php')) {
+    $cfg = include __DIR__ . '/config.php';
+} elseif (file_exists(__DIR__ . '/config.example.php')) {
+    $cfg = include __DIR__ . '/config.example.php';
+}
 
 // --- UPC Lookup Providers ---
 
