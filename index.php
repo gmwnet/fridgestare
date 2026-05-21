@@ -765,14 +765,16 @@ if ($uri === '/api/meal-plan' && $method === 'GET') {
 }
 
 // --- Page routes ---
-$page = 'scan';
+$page = 'home';
+if ($uri === '/scan') $page = 'scan';
 if ($uri === '/inventory') $page = 'inventory';
 if ($uri === '/ledger') $page = 'ledger';
 if ($uri === '/settings') $page = 'settings';
 if ($uri === '/users') $page = 'users';
 if ($uri === '/meal-planner') $page = 'meal-planner';
 $navItems = [
-    '/'         => ['label' => 'Scanner', 'icon' => '📷'],
+    '/'         => ['label' => 'Home', 'icon' => '🏠'],
+    '/scan'     => ['label' => 'Scanner', 'icon' => '📷'],
     '/meal-planner' => ['label' => "What's for Dinner?", 'icon' => '🍳'],
     '/inventory' => ['label' => 'Inventory', 'icon' => '📋'],
     '/ledger'    => ['label' => 'Ledger', 'icon' => '📜'],
@@ -900,6 +902,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .usr-name{flex:1;font-size:15px}
 .usr-del{padding:6px 12px;font-size:13px;border:none;border-radius:6px;background:#ff3b30;color:#fff;cursor:pointer}
 #btnSaveSettings{padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer;margin-top:12px;touch-action:manipulation}
+#homePage{flex:1;overflow-y:auto;padding:12px 16px 60px}
+.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:400px;margin:0 auto;padding-top:8px}
+.home-card{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 8px;background:#1a1a1a;border:1px solid #333;border-radius:12px;color:#fff;text-decoration:none;gap:8px;min-height:110px;touch-action:manipulation}
+.home-card:active{background:#333}
+.home-icon{font-size:36px}
+.home-label{font-size:14px;font-weight:500;text-align:center}
 </style>
 </head>
 <body>
@@ -922,7 +930,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <img src="/favicon-32x32.png" alt="" style="width:28px;height:28px;border-radius:4px">
     <span style="font-size:18px;font-weight:600;color:#fff">FridgeStare</span>
   </div>
-  <a href="/" class="<?= $page === 'scan' ? 'active' : '' ?>">📷 Scanner</a>
+  <a href="/" class="<?= $page === 'home' ? 'active' : '' ?>">🏠 Home</a>
+  <a href="/scan" class="<?= $page === 'scan' ? 'active' : '' ?>">📷 Scanner</a>
   <a href="/meal-planner" class="<?= $page === 'meal-planner' ? 'active' : '' ?>">🍳 What's for Dinner?</a>
   <a href="/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">📋 Inventory</a>
   <a href="/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">📜 Ledger</a>
@@ -945,7 +954,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div id="pinError">PIN not recognized</div>
 </div></div>
 
-<?php if ($page === 'inventory'): ?>
+<?php if ($page === 'home'): ?>
+
+<div id="homePage">
+  <div style="text-align:center;margin-top:28px;margin-bottom:4px"><img src="/apple-touch-icon.png" alt="FridgeStare" style="width:72px;height:72px;border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.4)"></div>
+  <div id="homeWelcome" style="font-size:22px;font-weight:600;text-align:center;margin-bottom:8px;color:#fff"></div>
+  <div class="home-grid">
+    <a href="/scan" class="home-card"><span class="home-icon">📷</span><span class="home-label">Scanner</span></a>
+    <a href="/meal-planner" class="home-card"><span class="home-icon">🍳</span><span class="home-label">What's for Dinner?</span></a>
+    <a href="/inventory" class="home-card"><span class="home-icon">📋</span><span class="home-label">Inventory</span></a>
+    <a href="/ledger" class="home-card"><span class="home-icon">📜</span><span class="home-label">Ledger</span></a>
+    <a href="/users" class="home-card"><span class="home-icon">👤</span><span class="home-label">Users</span></a>
+    <a href="/settings" class="home-card"><span class="home-icon">⚙️</span><span class="home-label">Settings</span></a>
+  </div>
+</div>
+
+<?php elseif ($page === 'inventory'): ?>
 
 <div id="invPage">
   <h2>Inventory</h2>
@@ -1081,7 +1105,7 @@ foreach ($qtys as $v) {
   </div>
 </div>
 
-<?php else: ?>
+<?php elseif ($page === 'scan'): ?>
 
 <div id="scanner">
   <div id="scanPrompt">

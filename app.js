@@ -88,6 +88,17 @@ $('menuBtn').addEventListener('click', function() { toggleMenu(true); });
 $('overlay').addEventListener('click', function() { toggleMenu(false); });
 document.querySelectorAll('#sideMenu a').forEach(function(a) { a.addEventListener('click', function() { toggleMenu(false); }); });
 
+function updateHomeWelcome() {
+  var el = $('homeWelcome');
+  if (!el) return;
+  if (currentUser) {
+    el.textContent = 'Welcome, ' + currentUser.name + '!';
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 // --- Auth ---
 function loadUser() {
   try { var u = JSON.parse(localStorage.getItem('groscan_user')); if (u && u.id && u.name && u.expires_at && Date.now() < u.expires_at) currentUser = u; else { localStorage.removeItem('groscan_user'); } } catch (e) {}
@@ -96,12 +107,14 @@ function loadUser() {
     $('logoutIcon').style.display = 'inline';
     $('pinOverlay').style.display = 'none';
     if (page === 'scan') setScanPrompt(true);
+    updateHomeWelcome();
   } else {
     $('userBadge').textContent = '';
     $('logoutIcon').style.display = 'none';
     $('pinOverlay').style.display = 'flex';
     $('pinInput').focus();
     turnstileToken = null; if (window.turnstile) turnstile.reset();
+    updateHomeWelcome();
   }
 }
 function onTurnstileSuccess(token) { turnstileToken = token; }
@@ -119,6 +132,7 @@ async function doAuth(pin) {
     $('pinOverlay').style.display = 'none';
     turnstileToken = null;
     if (page === 'scan') setScanPrompt(true);
+    updateHomeWelcome();
   } catch (e) { $('pinError').textContent = 'Network error'; $('pinError').style.display = 'block'; }
 }
 $('pinSubmit').addEventListener('click', function() { doAuth($('pinInput').value.trim()); });
@@ -191,7 +205,7 @@ $('btnManual').addEventListener('click', function() {
   if (upc.length < 8) { showError('UPC must be 8\u201314 digits.'); return; }
   $('manualUpc').value = '';
   if (page !== 'scan') {
-    window.location.href = '/?upc=' + encodeURIComponent(upc);
+    window.location.href = '/scan?upc=' + encodeURIComponent(upc);
   } else {
     lookupUpc(upc);
   }
@@ -650,7 +664,9 @@ if (urlUpc && urlUpc.length >= 8) {
 } // end if (page === 'scan')
 
 // --- Page-specific code ---
-if (page === 'inventory') {
+if (page === 'home') {
+  updateHomeWelcome();
+} else if (page === 'inventory') {
 
 async function loadInvPage() {
   try {
