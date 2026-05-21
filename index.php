@@ -1101,9 +1101,9 @@ foreach ($qtys as $v) {
 
 <div id="usersPage">
   <h2>Users</h2>
-  <div id="usersList"></div>
-  <div id="changePinForm" style="margin-top:20px;padding-top:16px;border-top:1px solid #333">
-    <h3 style="font-size:16px;margin-bottom:12px">Change My PIN</h3>
+  <div id="changePinForm" style="margin-top:0;padding-top:0;border-top:none">
+    <h3 style="font-size:16px;margin-bottom:12px">Change PIN</h3>
+    <select id="pinUserSelect" class="edit-field" style="margin-bottom:8px"></select>
     <input type="tel" id="selfNewPin" class="edit-field" placeholder="New PIN (4-8 digits)" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:8px">
     <input type="tel" id="selfConfirmPin" class="edit-field" placeholder="Confirm new PIN" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:12px">
     <button id="btnChangeMyPin" style="padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;cursor:pointer">Change PIN</button>
@@ -1113,6 +1113,11 @@ foreach ($qtys as $v) {
     <input type="text" id="newUserName" class="edit-field" placeholder="Name" style="margin-bottom:8px">
     <input type="tel" id="newUserPin" class="edit-field" placeholder="PIN (4-8 digits)" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:12px">
     <button id="btnAddUser" style="padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer">Add User</button>
+  </div>
+  <div style="margin-top:24px;padding-top:16px;border-top:1px solid #333">
+    <h3 style="color:#ff3b30;font-size:16px;margin-bottom:8px">Danger Zone</h3>
+    <p style="color:#888;font-size:13px;margin-bottom:12px">Deleting a user removes them from the user list but preserves their ledger history.</p>
+    <div id="usersList"></div>
   </div>
 </div>
 

@@ -896,6 +896,16 @@ async function loadUsers() {
       }
       list.appendChild(row);
     });
+    // Populate PIN change dropdown
+    var sel = $('pinUserSelect');
+    if (sel) {
+      while (sel.firstChild) sel.removeChild(sel.firstChild);
+      data.users.forEach(function(u) {
+        var opt = dom('option', {'value':u.id}, esc(u.name));
+        if (currentUser && u.id === currentUser.id) opt.setAttribute('selected', 'selected');
+        sel.appendChild(opt);
+      });
+    }
   } catch (e) {}
 }
 
@@ -916,9 +926,10 @@ $('btnChangeMyPin').addEventListener('click', async function() {
   var confirmPin = $('selfConfirmPin').value.trim();
   if (!/^\d{4,8}$/.test(newPin)) { showError('PIN must be 4-8 digits'); return; }
   if (newPin !== confirmPin) { showError('PINs do not match'); return; }
-  if (!currentUser) { showError('Not logged in'); return; }
+  var sel = $('pinUserSelect');
+  if (!sel.value) { showError('Select a user.'); return; }
   try {
-    var r = await fetch('/api/user/change-pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:currentUser.id,new_pin:newPin})});
+    var r = await fetch('/api/user/change-pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:parseInt(sel.value,10),new_pin:newPin})});
     var d = await r.json();
     if (d.success) { $('selfNewPin').value=''; $('selfConfirmPin').value=''; showError('PIN changed.'); }
     else showError(d.error||'Change failed');
