@@ -50,14 +50,14 @@ Run this after uploading files. It doesn't overwrite `config.php` or `fridgestar
 
 ```bash
 docker-compose up -d
-# App available at http://localhost:8080
+# App available at http://localhost:8420
 ```
 
 The Docker image:
 - Uses PHP 8.2 Apache with SQLite and zbarimg pre-installed
 - Strips any local API keys from `config.php` and writes clean defaults
 - Stores the SQLite database in a named Docker volume (survives restarts)
-- Exposes port 8080
+- Exposes port 8420
 
 To stop: `docker-compose down`
 

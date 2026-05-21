@@ -2,7 +2,7 @@ services:
   fridgestare:
     build: .
     ports:
-      - "8080:80"
+      - "8420:80"
     volumes:
       - fridgestare-data:/var/www/html/fridgestare.db
     restart: unless-stopped
