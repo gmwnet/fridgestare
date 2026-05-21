@@ -922,13 +922,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <img src="/favicon-32x32.png" alt="" style="width:28px;height:28px;border-radius:4px">
     <span style="font-size:18px;font-weight:600;color:#fff">FridgeStare</span>
   </div>
-  <a href="/" class="<?= $page === 'scan' ? 'active' : '' ?>">Scanner</a>
-  <a href="/meal-planner" class="<?= $page === 'meal-planner' ? 'active' : '' ?>">What's for Dinner?</a>
-  <a href="/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">Inventory</a>
-  <a href="/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">Ledger</a>
+  <a href="/" class="<?= $page === 'scan' ? 'active' : '' ?>">📷 Scanner</a>
+  <a href="/meal-planner" class="<?= $page === 'meal-planner' ? 'active' : '' ?>">🍳 What's for Dinner?</a>
+  <a href="/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">📋 Inventory</a>
+  <a href="/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">📜 Ledger</a>
   <div style="border-top:1px solid #333;margin:4px 0"></div>
-  <a href="/users" class="<?= $page === 'users' ? 'active' : '' ?>">Users</a>
-  <a href="/settings" class="<?= $page === 'settings' ? 'active' : '' ?>">Settings</a>
+  <a href="/users" class="<?= $page === 'users' ? 'active' : '' ?>">👤 Users</a>
+  <a href="/settings" class="<?= $page === 'settings' ? 'active' : '' ?>">&#x2699;&#xFE0F; Settings</a>
   <a href="#" id="menuSwitchUser" style="margin-top:4px">&#x21C4; Switch User</a>
 </div>
 
