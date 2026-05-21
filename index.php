@@ -772,14 +772,15 @@ if ($uri === '/ledger') $page = 'ledger';
 if ($uri === '/settings') $page = 'settings';
 if ($uri === '/users') $page = 'users';
 if ($uri === '/meal-planner') $page = 'meal-planner';
+if ($uri === '/help') $page = 'help';
 $navItems = [
     '/'         => ['label' => 'Home', 'icon' => '🏠'],
     '/scan'     => ['label' => 'Scanner', 'icon' => '📷'],
-    '/meal-planner' => ['label' => "What's for Dinner?", 'icon' => '🍳'],
+    '/meal-planner' => ['label' => "What's for Dinner?", 'icon' => '🍽️'],
     '/inventory' => ['label' => 'Inventory', 'icon' => '📋'],
     '/ledger'    => ['label' => 'Ledger', 'icon' => '📜'],
-    '/users'     => ['label' => 'Users', 'icon' => '👤'],
     '/settings'  => ['label' => 'Settings', 'icon' => '⚙️'],
+    '/help'      => ['label' => 'Help', 'icon' => '❓'],
 ];
 ?><!DOCTYPE html>
 <html lang="en">
@@ -904,10 +905,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #btnSaveSettings{padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer;margin-top:12px;touch-action:manipulation}
 #homePage{flex:1;overflow-y:auto;padding:12px 16px 60px}
 .home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:400px;margin:0 auto;padding-top:8px}
+.home-grid-sm{grid-template-columns:repeat(4,1fr);gap:8px;max-width:400px;margin:12px auto 0}
 .home-card{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 8px;background:#1a1a1a;border:1px solid #333;border-radius:12px;color:#fff;text-decoration:none;gap:8px;min-height:110px;touch-action:manipulation}
 .home-card:active{background:#333}
+.home-card-sm{min-height:80px;padding:12px 4px;gap:4px}
 .home-icon{font-size:36px}
+.home-card-sm .home-icon{font-size:24px}
 .home-label{font-size:14px;font-weight:500;text-align:center}
+.home-card-sm .home-label{font-size:11px}
 </style>
 </head>
 <body>
@@ -932,12 +937,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
   <a href="/" class="<?= $page === 'home' ? 'active' : '' ?>">🏠 Home</a>
   <a href="/scan" class="<?= $page === 'scan' ? 'active' : '' ?>">📷 Scanner</a>
-  <a href="/meal-planner" class="<?= $page === 'meal-planner' ? 'active' : '' ?>">🍳 What's for Dinner?</a>
+  <a href="/meal-planner" class="<?= $page === 'meal-planner' ? 'active' : '' ?>">🍽️ What's for Dinner?</a>
   <a href="/inventory" class="<?= $page === 'inventory' ? 'active' : '' ?>">📋 Inventory</a>
   <a href="/ledger" class="<?= $page === 'ledger' ? 'active' : '' ?>">📜 Ledger</a>
   <div style="border-top:1px solid #333;margin:4px 0"></div>
-  <a href="/users" class="<?= $page === 'users' ? 'active' : '' ?>">👤 Users</a>
   <a href="/settings" class="<?= $page === 'settings' ? 'active' : '' ?>">&#x2699;&#xFE0F; Settings</a>
+  <a href="/help" class="<?= $page === 'help' ? 'active' : '' ?>">&#x2753; Help</a>
   <a href="#" id="menuSwitchUser" style="margin-top:4px">&#x21C4; Switch User</a>
 </div>
 
@@ -960,12 +965,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <div style="text-align:center;margin-top:28px;margin-bottom:4px"><img src="/apple-touch-icon.png" alt="FridgeStare" style="width:72px;height:72px;border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.4)"></div>
   <div id="homeWelcome" style="font-size:22px;font-weight:600;text-align:center;margin-bottom:8px;color:#fff"></div>
   <div class="home-grid">
-    <a href="/scan" class="home-card"><span class="home-icon">📷</span><span class="home-label">Scanner</span></a>
-    <a href="/meal-planner" class="home-card"><span class="home-icon">🍳</span><span class="home-label">What's for Dinner?</span></a>
-    <a href="/inventory" class="home-card"><span class="home-icon">📋</span><span class="home-label">Inventory</span></a>
-    <a href="/ledger" class="home-card"><span class="home-icon">📜</span><span class="home-label">Ledger</span></a>
-    <a href="/users" class="home-card"><span class="home-icon">👤</span><span class="home-label">Users</span></a>
-    <a href="/settings" class="home-card"><span class="home-icon">⚙️</span><span class="home-label">Settings</span></a>
+    <a href="/scan" class="home-card home-card-lg"><span class="home-icon">📷</span><span class="home-label">Scanner</span></a>
+    <a href="/meal-planner" class="home-card home-card-lg"><span class="home-icon">🍽️</span><span class="home-label">What's for Dinner?</span></a>
+  </div>
+  <div class="home-grid home-grid-sm">
+    <a href="/inventory" class="home-card home-card-sm"><span class="home-icon">📋</span><span class="home-label">Inventory</span></a>
+    <a href="/ledger" class="home-card home-card-sm"><span class="home-icon">📜</span><span class="home-label">Ledger</span></a>
+    <a href="/settings" class="home-card home-card-sm"><span class="home-icon">⚙️</span><span class="home-label">Settings</span></a>
+    <a href="/help" class="home-card home-card-sm"><span class="home-icon">❓</span><span class="home-label">Help</span></a>
   </div>
 </div>
 
@@ -1083,6 +1090,10 @@ foreach ($qtys as $v) {
     </div>
 
     <button id="btnSaveSettings">Save Settings</button>
+    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #333">
+      <p style="color:#888;font-size:13px;margin-bottom:8px">User accounts and PIN management</p>
+      <a href="/users" style="display:inline-block;padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;text-decoration:none;cursor:pointer">Manage Users &rarr;</a>
+    </div>
   </div>
 </div>
 
@@ -1102,6 +1113,20 @@ foreach ($qtys as $v) {
     <input type="text" id="newUserName" class="edit-field" placeholder="Name" style="margin-bottom:8px">
     <input type="tel" id="newUserPin" class="edit-field" placeholder="PIN (4-8 digits)" inputmode="numeric" pattern="[0-9]*" maxlength="8" style="margin-bottom:12px">
     <button id="btnAddUser" style="padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer">Add User</button>
+  </div>
+</div>
+
+<?php elseif ($page === 'help'): ?>
+
+<div id="helpPage" style="flex:1;overflow-y:auto;padding:12px 16px 60px;position:relative;z-index:10">
+  <h2 style="font-size:18px;margin-bottom:12px">Help</h2>
+  <div style="color:#ccc;font-size:14px;line-height:1.6">
+    <p style="margin-bottom:10px"><strong>Getting Started</strong><br>Log in with your PIN, then head to the Scanner to start adding items.</p>
+    <p style="margin-bottom:10px"><strong>Scanning Barcodes</strong><br>Tap the 📷 button on the Scanner page to open your camera and snap a photo of a UPC barcode. The app decodes it client-side and looks up product info.</p>
+    <p style="margin-bottom:10px"><strong>Manual Entry</strong><br>No barcode? Tap "No barcode? Add manually" to enter product details and pick meal-planning tags.</p>
+    <p style="margin-bottom:10px"><strong>What's for Dinner?</strong><br>Select tags for the meal components you want, and the app will suggest a randomized combination from your current inventory. Check items to take and tap "Confirm &amp; Take Selected".</p>
+    <p style="margin-bottom:10px"><strong>Inventory</strong><br>View and adjust your current stock with live +/- buttons.</p>
+    <p style="margin-bottom:10px"><strong>Ledger</strong><br>Audit trail of all add/take and admin actions, with timestamps and usernames.</p>
   </div>
 </div>
 
