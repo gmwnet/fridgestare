@@ -903,6 +903,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .usr-name{flex:1;font-size:15px}
 .usr-del{padding:6px 12px;font-size:13px;border:none;border-radius:6px;background:#ff3b30;color:#fff;cursor:pointer}
 #btnSaveSettings{padding:10px 20px;border:none;border-radius:8px;background:#34c759;color:#fff;font-size:15px;cursor:pointer;margin-top:12px;touch-action:manipulation}
+.help-icon{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#444;color:#aaa;font-size:11px;font-weight:700;cursor:pointer;margin-left:4px;vertical-align:middle;line-height:1;touch-action:manipulation;user-select:none}
+.help-icon:active{background:#666}
+#settingsHelpPopup{position:fixed;z-index:400;background:#222;border:1px solid #555;border-radius:8px;padding:10px 14px;font-size:13px;color:#ccc;max-width:280px;line-height:1.4;display:none;box-shadow:0 4px 16px rgba(0,0,0,.5);pointer-events:none}
 #homePage{flex:1;overflow-y:auto;padding:12px 16px 60px}
 .home-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:400px;margin:0 auto;padding-top:8px}
 .home-grid-sm{grid-template-columns:repeat(4,1fr);gap:8px;max-width:400px;margin:12px auto 0}
@@ -1012,7 +1015,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   <h2>Settings</h2>
   <div id="settingsForm">
     <div class="set-row">
-      <span class="set-label">Timezone</span>
+      <span class="set-label">Timezone <span class="help-icon" data-tip="Display timezone for ledger and inventory timestamps.">?</span></span>
       <span class="set-val"><select id="cfg_timezone"><?php
 $zones = DateTimeZone::listIdentifiers();
 $currentTz = $cfg['timezone'] ?? 'UTC';
@@ -1023,7 +1026,7 @@ foreach ($zones as $zone) {
 ?></select></span>
     </div>
     <div class="set-row">
-      <span class="set-label">Session Timeout (days)</span>
+      <span class="set-label">Session Timeout (days) <span class="help-icon" data-tip="How long a PIN login lasts before re-authentication is required.">?</span></span>
       <span class="set-val"><select id="cfg_session_timeout_days"><?php
 $timeouts = [7,14,30,60,90,365];
 $curSess = (int)($cfg['session_timeout_days'] ?? 30);
@@ -1035,7 +1038,7 @@ foreach ($timeouts as $v) {
 ?></select></span>
     </div>
     <div class="set-row">
-      <span class="set-label">PIN Max Attempts</span>
+      <span class="set-label">PIN Max Attempts <span class="help-icon" data-tip="Number of incorrect PIN attempts before temporary lockout.">?</span></span>
       <span class="set-val"><select id="cfg_pin_max_attempts"><?php
 $attempts = [1,2,3,5,10];
 $curAtt = (int)($cfg['pin_max_attempts'] ?? 3);
@@ -1046,7 +1049,7 @@ foreach ($attempts as $v) {
 ?></select></span>
     </div>
     <div class="set-row">
-      <span class="set-label">PIN Lockout (hours)</span>
+      <span class="set-label">PIN Lockout (hours) <span class="help-icon" data-tip="How long the lockout lasts after max failed attempts.">?</span></span>
       <span class="set-val"><select id="cfg_pin_lockout_hours"><?php
 $lockouts = [1,2,4,8,12,24];
 $curLock = (int)($cfg['pin_lockout_hours'] ?? 1);
@@ -1058,7 +1061,7 @@ foreach ($lockouts as $v) {
 ?></select></span>
     </div>
     <div class="set-row">
-      <span class="set-label">Default Quantity</span>
+      <span class="set-label">Default Quantity <span class="help-icon" data-tip="Starting quantity when adding items manually.">?</span></span>
       <span class="set-val"><select id="cfg_default_qty"><?php
 $qtys = [1,2,3,5,10];
 $curQty = (int)($cfg['default_qty'] ?? 1);
@@ -1069,23 +1072,23 @@ foreach ($qtys as $v) {
 ?></select></span>
     </div>
     <div class="set-row">
-      <span class="set-label">Debug Mode</span>
+      <span class="set-label">Debug Mode <span class="help-icon" data-tip="Shows a green debug overlay on the scan page for troubleshooting barcode scanning.">?</span></span>
       <span class="set-val"><input type="checkbox" id="cfg_debug"></span>
     </div>
 
-    <h3 style="color:#ff3b30;font-size:16px;margin:20px 0 8px;border-top:1px solid #333;padding-top:12px">Danger Zone</h3>
+    <h3 style="color:#ff3b30;font-size:16px;margin:20px 0 8px;padding-top:12px">Danger Zone</h3>
     <p style="color:#888;font-size:13px;margin-bottom:12px">These settings affect external services and security.</p>
 
     <div class="set-row">
-      <span class="set-label">Turnstile Site Key</span>
+      <span class="set-label">Turnstile Site Key <span class="help-icon" data-tip="Cloudflare Turnstile site key for CAPTCHA on the PIN login screen. Leave blank to disable.">?</span></span>
       <span class="set-val"><input type="text" id="cfg_turnstile_site_key" placeholder="Cloudflare Turnstile Site Key"></span>
     </div>
     <div class="set-row">
-      <span class="set-label">Turnstile Secret Key</span>
+      <span class="set-label">Turnstile Secret Key <span class="help-icon" data-tip="Cloudflare Turnstile secret key. Required if Site Key is set.">?</span></span>
       <span class="set-val"><input type="text" id="cfg_turnstile_secret_key" placeholder="Cloudflare Turnstile Secret Key"></span>
     </div>
     <div class="set-row">
-      <span class="set-label">UPCItemDB Key</span>
+      <span class="set-label">UPCItemDB Key <span class="help-icon" data-tip="Optional API key for UPCItemDB product lookup. Fallback when Open Food Facts has no data.">?</span></span>
       <span class="set-val"><input type="text" id="cfg_upcitemdb_key" placeholder="UPCItemDB API Key (optional)"></span>
     </div>
 
@@ -1095,6 +1098,7 @@ foreach ($qtys as $v) {
       <a href="/users" style="display:inline-block;padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;text-decoration:none;cursor:pointer">Manage Users &rarr;</a>
     </div>
   </div>
+  <div id="settingsHelpPopup"></div>
 </div>
 
 <?php elseif ($page === 'users'): ?>

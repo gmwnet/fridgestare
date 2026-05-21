@@ -865,6 +865,24 @@ renderMealTagToggles();
       else showError(d.error || 'Save failed');
     } catch (e) { showError('Network error'); }
   });
+  document.addEventListener('click', function(e) {
+    var target = e.target.closest('.help-icon');
+    var popup = $('settingsHelpPopup');
+    if (!popup) return;
+    if (target) {
+      e.preventDefault();
+      popup.textContent = target.dataset.tip;
+      var rect = target.getBoundingClientRect();
+      var left = rect.left;
+      if (left + 290 > window.innerWidth) left = window.innerWidth - 290;
+      if (left < 8) left = 8;
+      popup.style.left = left + 'px';
+      popup.style.top = (rect.bottom + 6) + 'px';
+      popup.style.display = 'block';
+    } else {
+      popup.style.display = 'none';
+    }
+  });
 })();
 
 } else if (page === 'users') {
