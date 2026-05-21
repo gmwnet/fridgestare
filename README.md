@@ -16,7 +16,7 @@ A lightweight, self-contained grocery inventory and meal planning app. Scan UPC 
 
 ## Design Philosophy
 
-Everything in this app is intentionally simple — sometimes to the point where it might look like a corner was cut. It wasn't.
+Everything in this app is intentionally simple — sometimes to the point where it might look like a corner was cut. To the contrary...
 
 - **PINs are 4–8 digits, no email, no passwords.** That's the point. You type 4 numbers and you're in. The only real threat is brute-force, which Turnstile and rate limiting handle.
 - **No permissions, no roles, no admin accounts.** Every user is the same. The ledger tracks who did what, but nobody has special powers. If you can log in, you can use everything.
@@ -133,3 +133,7 @@ If you skip it, the CAPTCHA simply doesn't appear — the app works fine either 
 ## License
 
 MIT
+
+## Statement on AI use
+
+AI was used to generate portions of the code and for security reviews and bug chase/fixing.  The architecture and scaffolding was done by a real human (me!)
