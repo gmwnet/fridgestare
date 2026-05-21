@@ -984,7 +984,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <div id="invPage">
   <h2>Inventory</h2>
-  <input type="text" id="invpFilter" placeholder="Filter items..." style="width:100%;padding:10px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;outline:none;margin-bottom:8px">
+  <div style="display:flex;gap:8px;margin-bottom:8px">
+    <input type="text" id="invpFilter" placeholder="Filter items..." style="flex:1;padding:10px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;outline:none">
+    <button id="invpExport" style="padding:10px 14px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;font-size:15px;cursor:pointer;white-space:nowrap">CSV</button>
+  </div>
   <div id="invpList"></div>
 </div>
 

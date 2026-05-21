@@ -702,6 +702,16 @@ async function loadInvPage() {
 }
 
 $('invpFilter').addEventListener('input', renderInvPage);
+$('invpExport').addEventListener('click', function() {
+  var csv = 'Name,Quantity\n';
+  invpData.forEach(function(item) { csv += '"' + item.name.replace(/"/g,'""') + '",' + item.qty + '\n'; });
+  var blob = new Blob([csv], {type:'text/csv'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'fridgestare-inventory.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
 loadInvPage();
 
 } else if (page === 'ledger') {
