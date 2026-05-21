@@ -1,0 +1,9 @@
+.git
+.gitignore
+.dockerignore
+groscan.db
+README.md
+LICENSE
+deploy.sh
+reset-db.php
+w:\groscan-spec.md

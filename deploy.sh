@@ -17,6 +17,23 @@ else
     echo "WARNING: PDO SQLite not available. Install php-sqlite3."
 fi
 
+# Check Apache mod_rewrite
+if command -v a2enmod &> /dev/null; then
+    if apachectl -M 2>/dev/null | grep -q rewrite; then
+        echo "mod_rewrite: OK"
+    else
+        echo "WARNING: mod_rewrite not enabled. Run: sudo a2enmod rewrite && sudo systemctl restart apache2"
+    fi
+elif command -v httpd &> /dev/null; then
+    if httpd -M 2>/dev/null | grep -q rewrite; then
+        echo "mod_rewrite: OK"
+    else
+        echo "WARNING: mod_rewrite not enabled (check your Apache config)"
+    fi
+else
+    echo "Apache not detected — ensure mod_rewrite is enabled if using Apache"
+fi
+
 # Check zbarimg
 if command -v zbarimg &> /dev/null; then
     echo "zbarimg: OK (server-side photo fallback available)"
@@ -27,9 +44,12 @@ else
 fi
 
 # Set permissions
-chmod 644 *.php *.js *.html *.css *.png *.ico *.webmanifest 2>/dev/null
-chmod 644 .htaccess 2>/dev/null
-chmod 666 groscan.db 2>/dev/null || true
+chmod 644 index.php app.js zbar-wasm.js zbar.wasm reset-db.php config.php .htaccess favicon.ico favicon-*.png apple-touch-icon.png android-chrome-*.png site.webmanifest 2>/dev/null
+chmod 755 . 2>/dev/null
+if [ ! -f groscan.db ]; then
+    touch groscan.db
+fi
+chmod 666 groscan.db 2>/dev/null
 
 echo ""
 echo "Permissions set."

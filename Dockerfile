@@ -14,9 +14,12 @@ RUN a2enmod rewrite
 # Copy app files
 COPY . /var/www/html/
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod 666 /var/www/html/groscan.db || true
+# Replace local config.php with empty defaults (never bake real API keys into the image)
+RUN rm -f /var/www/html/config.php && \
+    printf '<?php\nreturn array (\n  '"'"'upcitemdb_key'"'"' => '"'"''"'"',\n  '"'"'turnstile_site_key'"'"' => '"'"''"'"',\n  '"'"'turnstile_secret_key'"'"' => '"'"''"'"',\n  '"'"'timezone'"'"' => '"'"'America/New_York'"'"',\n  '"'"'session_timeout_days'"'"' => 30,\n  '"'"'pin_max_attempts'"'"' => 5,\n  '"'"'pin_lockout_hours'"'"' => 1,\n  '"'"'default_qty'"'"' => 1,\n  '"'"'emergency_unlock'"'"' => false,\n  '"'"'debug'"'"' => false,\n);\n' > /var/www/html/config.php
+
+# Ensure DB is writable (created on first request)
+RUN touch /var/www/html/groscan.db && chmod 666 /var/www/html/groscan.db
 
 # Apache already listens on 80
 EXPOSE 80
