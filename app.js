@@ -168,14 +168,26 @@ $('errorClose').addEventListener('click', function() { $('errorOverlay').classLi
 $('errorOverlay').addEventListener('click', function(e) { if (e.target === e.currentTarget) { $('errorOverlay').classList.remove('show'); } });
 
 // --- API helpers ---
+function sessionToken() { return currentUser ? currentUser.session_token : null; }
+function expireSession() {
+  currentUser = null;
+  localStorage.removeItem('groscan_user');
+  $('pinOverlay').style.display = 'flex';
+  $('pinInput').value = '';
+  $('pinInput').focus();
+  if (window.turnstile) turnstile.reset();
+  turnstileToken = null;
+}
+
 async function apiAction(upc, action, name, brand, qty) {
-  var payload = { upc: upc, action: action, name: name || null, brand: brand || null, user_id: currentUser ? currentUser.id : null };
+  var payload = { upc: upc, action: action, name: name || null, brand: brand || null, user_id: currentUser ? currentUser.id : null, session_token: sessionToken() };
   if (typeof qty !== 'undefined') payload.qty = qty;
   var res = await fetch('/api/action', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
+  if (res.status === 401) { expireSession(); return { success: false, error: 'Session expired' }; }
   return res.json();
 }
 
@@ -360,6 +372,7 @@ async function uploadPhotoFile(file, mySeq) {
     });
     var form = new FormData();
     form.append('photo', blob, 'barcode.jpg');
+    form.append('session_token', sessionToken() || '');
     var res = await fetch('/api/scan-photo', { method: 'POST', body: form });
     if (mySeq !== photoSeq) return;
     var data = await res.json();
@@ -425,7 +438,7 @@ async function saveManualItem() {
       await fetch('/api/tag', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ upc: tagUpc, tags: selectedTags })
+        body: JSON.stringify({ upc: tagUpc, tags: selectedTags, session_token: sessionToken() })
       });
     } else {
       showError(data.error || 'Action failed');
@@ -564,7 +577,7 @@ async function doAction(action) {
     await fetch('/api/tag', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ upc: lastProduct.upc, tags: selectedTags })
+      body: JSON.stringify({ upc: lastProduct.upc, tags: selectedTags, session_token: sessionToken() })
     });
     var f = $('flash');
     f.textContent = action === 'add' ? 'Added!' : 'Taken!';
@@ -841,7 +854,8 @@ renderMealTagToggles();
 
 (async function() {
   try {
-    var res = await fetch('/api/config');
+    var res = await fetch('/api/config?session_token=' + encodeURIComponent(sessionToken() || ''));
+    if (res.status === 401) { expireSession(); return; }
     var data = await res.json();
     $('cfg_timezone').value = data.timezone || 'UTC';
     $('cfg_session_timeout_days').value = data.session_timeout_days || 30;
@@ -873,6 +887,7 @@ renderMealTagToggles();
       upcitemdb_key: $('cfg_upcitemdb_key').value.trim().substring(0, 512)
     };
     payload.user_id = currentUser ? currentUser.id : null;
+    payload.session_token = sessionToken();
     try {
       var r = await fetch('/api/config', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       var d = await r.json();
@@ -925,7 +940,7 @@ async function loadUsers() {
         del.addEventListener('click', async function() {
           if (!confirm('Delete user "' + u.name + '"?')) return;
           try {
-            var r = await fetch('/api/user/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:u.id,user_id:currentUser?currentUser.id:null})});
+            var r = await fetch('/api/user/delete', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:u.id,user_id:currentUser?currentUser.id:null,session_token:sessionToken()})});
             var d = await r.json();
             if (d.success) loadUsers(); else showError(d.error||'Delete failed');
           } catch (e) { showError('Network error'); }
@@ -947,12 +962,18 @@ async function loadUsers() {
   } catch (e) {}
 }
 
+var commonPins = ['0000','1111','2222','3333','4444','5555','6666','7777','8888','9999',
+    '1234','2345','3456','4567','5678','6789','7890','4321','8765','9876',
+    '1212','1122','1230','12345','123456','12345678',
+    '1004','2000','2001','1984','2580','5683','0852','0915','6969'];
+
 $('btnAddUser').addEventListener('click', async function() {
   var name = $('newUserName').value.trim();
   var pin = $('newUserPin').value.trim();
   if (!name || !/^\d{4,8}$/.test(pin)) { showError('Name and 4-8 digit PIN required'); return; }
+  if (commonPins.indexOf(pin) >= 0) { showError('That PIN is too common. Choose something less predictable.'); return; }
   try {
-    var r = await fetch('/api/user', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,pin:pin,user_id:currentUser?currentUser.id:null})});
+    var r = await fetch('/api/user', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,pin:pin,user_id:currentUser?currentUser.id:null,session_token:sessionToken()})});
     var d = await r.json();
     if (d.success) { $('newUserName').value=''; $('newUserPin').value=''; loadUsers(); }
     else showError(d.error||'Add failed');
@@ -963,11 +984,12 @@ $('btnChangeMyPin').addEventListener('click', async function() {
   var newPin = $('selfNewPin').value.trim();
   var confirmPin = $('selfConfirmPin').value.trim();
   if (!/^\d{4,8}$/.test(newPin)) { showError('PIN must be 4-8 digits'); return; }
+  if (commonPins.indexOf(newPin) >= 0) { showError('That PIN is too common. Choose something less predictable.'); return; }
   if (newPin !== confirmPin) { showError('PINs do not match'); return; }
   var sel = $('pinUserSelect');
   if (!sel.value) { showError('Select a user.'); return; }
   try {
-    var r = await fetch('/api/user/change-pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:parseInt(sel.value,10),new_pin:newPin})});
+    var r = await fetch('/api/user/change-pin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:parseInt(sel.value,10),new_pin:newPin,session_token:sessionToken()})});
     var d = await r.json();
     if (d.success) { $('selfNewPin').value=''; $('selfConfirmPin').value=''; showError('PIN changed.'); }
     else showError(d.error||'Change failed');

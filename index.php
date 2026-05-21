@@ -2,6 +2,14 @@
 // FridgeStare — Grocery UPC Scanner
 // Single-file PHP app: scan barcodes, look up products, manage inventory
 
+ini_set('display_errors', '0');
+set_exception_handler(function($e) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Internal server error']);
+    exit;
+});
+
 $dbPath = __DIR__ . '/groscan.db';
 $cfg = (file_exists(__DIR__ . '/config.php')) ? include __DIR__ . '/config.php' : [];
 
@@ -131,6 +139,11 @@ $db->exec("
         attempts    INTEGER DEFAULT 0,
         locked_until DATETIME
     );
+    CREATE TABLE IF NOT EXISTS sessions (
+        user_id     INTEGER NOT NULL,
+        token       TEXT NOT NULL,
+        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
 ");
 try { $db->exec("ALTER TABLE ledger ADD COLUMN user_id INTEGER"); } catch (PDOException $e) {}
 try { $db->exec("ALTER TABLE ledger ADD COLUMN details TEXT"); } catch (PDOException $e) {}
@@ -138,6 +151,7 @@ try { $db->exec("ALTER TABLE ledger ADD COLUMN user_name TEXT"); } catch (PDOExc
 try { $db->exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, pin_hash TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"); } catch (PDOException $e) {}
 try { $db->exec("CREATE TABLE IF NOT EXISTS rate_limits (ip TEXT PRIMARY KEY, attempts INTEGER DEFAULT 0, locked_until DATETIME)"); } catch (PDOException $e) {}
 try { $db->exec("ALTER TABLE products ADD COLUMN tags TEXT"); } catch (PDOException $e) {}
+try { $db->exec("CREATE TABLE IF NOT EXISTS sessions (user_id INTEGER NOT NULL, token TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)"); } catch (PDOException $e) {}
 
 // Insert default user if table is empty
 $countStmt = $db->query("SELECT COUNT(*) FROM users");
@@ -213,6 +227,21 @@ function clientIp() {
         if (!empty($_SERVER[$k])) return preg_replace('/[^0-9a-f.:]/', '', explode(',', $_SERVER[$k])[0]);
     }
     return '0.0.0.0';
+}
+
+function checkSession($token) {
+    global $db, $cfg;
+    if (!$token) return null;
+    $days = (int)($cfg['session_timeout_days'] ?? 30);
+    $stmt = $db->prepare(
+        "SELECT s.user_id, u.name FROM sessions s
+         JOIN users u ON s.user_id = u.id
+         WHERE s.token = ? AND s.created_at >= datetime('now', '-' || ? || ' days')"
+    );
+    $stmt->execute([$token, $days]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) return null;
+    return ['id' => (int)$row['user_id'], 'name' => $row['name']];
 }
 
 // --- Router ---
@@ -303,6 +332,8 @@ if ($uri === '/api/lookup' && $method === 'GET') {
 // --- API: Action ---
 if ($uri === '/api/action' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
+    $session = checkSession($input['session_token'] ?? '');
+    if (!$session) jsonResponse(['error' => 'Authentication required'], 401);
     $rawUpc = $input['upc'] ?? '';
     $action = $input['action'] ?? '';
     if (!preg_match('/^\d{8,14}$/', $rawUpc) || !in_array($action, ['add', 'take'])) {
@@ -313,8 +344,7 @@ if ($uri === '/api/action' && $method === 'POST') {
     $brand = $input['brand'] ?? null;
     $qty = isset($input['qty']) ? (int)$input['qty'] : 1;
     if ($qty < 1) $qty = 1;
-    $userId = $input['user_id'] ?? null;
-    if ($userId !== null) $userId = (int)$userId;
+    $userId = $session['id'];
     if ($name !== null || $brand !== null) {
         $existing = $db->prepare("SELECT COUNT(*) FROM products WHERE upc = ?");
         $existing->execute([$upc]);
@@ -408,7 +438,7 @@ if ($uri === '/api/health' && $method === 'GET') {
     jsonResponse([
         'ok' => true,
         'version' => '0.1',
-        'php' => PHP_VERSION,
+        'php' => PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION . '.x',
         'sqlite' => $db->getAttribute(PDO::ATTR_SERVER_VERSION),
         'zbarimg' => $hasZbar,
         'timezone' => $cfg['timezone'] ?? 'UTC',
@@ -417,6 +447,7 @@ if ($uri === '/api/health' && $method === 'GET') {
 
 // --- API: Scan Photo (safety-net fallback) ---
 if ($uri === '/api/scan-photo' && $method === 'POST') {
+    if (!checkSession($_POST['session_token'] ?? '')) jsonResponse(['error' => 'Authentication required'], 401);
     if (empty($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
         $err = 'Photo upload failed';
         if (!empty($_FILES['photo']['error'])) {
@@ -428,6 +459,15 @@ if ($uri === '/api/scan-photo' && $method === 'POST') {
             }
         }
         jsonResponse(['success' => false, 'error' => $err], 400);
+    }
+
+    // Validate file type (must be a JPEG, PNG, or WebP image)
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $_FILES['photo']['tmp_name']);
+    finfo_close($finfo);
+    if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'])) {
+        @unlink($_FILES['photo']['tmp_name']);
+        jsonResponse(['success' => false, 'error' => 'Invalid file type. Only images allowed.'], 400);
     }
 
     $tmpFile = $_FILES['photo']['tmp_name'];
@@ -469,6 +509,7 @@ if ($uri === '/api/scan-photo' && $method === 'POST') {
 // --- API: Tag ---
 if ($uri === '/api/tag' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
+    if (!checkSession($input['session_token'] ?? '')) jsonResponse(['error' => 'Authentication required'], 401);
     $rawUpc = $input['upc'] ?? '';
     $tags = $input['tags'] ?? [];
     if (!preg_match('/^\d{8,14}$/', $rawUpc) || !is_array($tags)) {
@@ -488,12 +529,16 @@ if ($uri === '/api/tag' && $method === 'POST') {
 
 // --- API: Config ---
 if ($uri === '/api/config' && $method === 'GET') {
+    $token = $_GET['session_token'] ?? '';
+    if (!checkSession($token)) jsonResponse(['error' => 'Authentication required'], 401);
     jsonResponse($cfg);
 }
 if ($uri === '/api/config' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
+    $session = checkSession($input['session_token'] ?? '');
+    if (!$session) jsonResponse(['error' => 'Authentication required'], 401);
     if (!is_array($input)) jsonResponse(['error' => 'Invalid request'], 400);
-    $userId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+    $userId = $session['id'];
 
     $allowed = ['upcitemdb_key','turnstile_site_key','turnstile_secret_key',
                 'timezone','session_timeout_days','pin_max_attempts',
@@ -525,6 +570,14 @@ function pinExists($db, $pin) {
     return false;
 }
 
+function isWeakPin($pin) {
+    $common = ['0000','1111','2222','3333','4444','5555','6666','7777','8888','9999',
+        '1234','2345','3456','4567','5678','6789','7890','4321','8765','9876',
+        '1212','1122','1230','12345','123456','12345678',
+        '1004','2000','2001','1984','2580','5683','0852','0915','6969'];
+    return in_array($pin, $common, true);
+}
+
 if ($uri === '/api/users' && $method === 'GET') {
     $stmt = $db->query("SELECT id, name, created_at FROM users ORDER BY name");
     jsonResponse(['users' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
@@ -532,11 +585,16 @@ if ($uri === '/api/users' && $method === 'GET') {
 
 if ($uri === '/api/user' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
+    $session = checkSession($input['session_token'] ?? '');
+    if (!$session) jsonResponse(['error' => 'Authentication required'], 401);
     $name = trim($input['name'] ?? '');
     $pin = $input['pin'] ?? '';
-    $userId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+    $userId = $session['id'];
     if (!$name || !preg_match('/^\d{4,8}$/', $pin)) {
         jsonResponse(['error' => 'Name and 4-8 digit PIN required'], 400);
+    }
+    if (isWeakPin($pin)) {
+        jsonResponse(['error' => 'That PIN is too common. Choose something less predictable.'], 400);
     }
     if (pinExists($db, $pin)) {
         jsonResponse(['error' => 'That PIN is already in use. Choose a different one.'], 409);
@@ -554,9 +612,11 @@ if ($uri === '/api/user' && $method === 'POST') {
 if (preg_match('#^/api/user/(\d+)$#', $uri, $m) && $method === 'POST') {
     $id = (int)$m[1];
     $input = json_decode(file_get_contents('php://input'), true);
+    $session = checkSession($input['session_token'] ?? '');
+    if (!$session) jsonResponse(['error' => 'Authentication required'], 401);
     $name = isset($input['name']) ? trim($input['name']) : null;
     $pin = $input['pin'] ?? null;
-    $userId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+    $userId = $session['id'];
 
     $updates = [];
     $params = [];
@@ -567,6 +627,9 @@ if (preg_match('#^/api/user/(\d+)$#', $uri, $m) && $method === 'POST') {
     if ($pin !== null) {
         if (!preg_match('/^\d{4,8}$/', $pin)) {
             jsonResponse(['error' => 'PIN must be 4-8 digits'], 400);
+        }
+        if (isWeakPin($pin)) {
+            jsonResponse(['error' => 'That PIN is too common. Choose something less predictable.'], 400);
         }
         if (pinExists($db, $pin)) {
             jsonResponse(['error' => 'That PIN is already in use. Choose a different one.'], 409);
@@ -592,8 +655,10 @@ if (preg_match('#^/api/user/(\d+)$#', $uri, $m) && $method === 'POST') {
 
 if ($uri === '/api/user/delete' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
+    $session = checkSession($input['session_token'] ?? '');
+    if (!$session) jsonResponse(['error' => 'Authentication required'], 401);
     $id = isset($input['id']) ? (int)$input['id'] : null;
-    $userId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+    $userId = $session['id'];
     if (!$id) jsonResponse(['error' => 'User ID required'], 400);
 
     $stmt = $db->prepare("SELECT name FROM users WHERE id = ?");
@@ -611,10 +676,15 @@ if ($uri === '/api/user/delete' && $method === 'POST') {
 
 if ($uri === '/api/user/change-pin' && $method === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
+    $session = checkSession($input['session_token'] ?? '');
+    if (!$session) jsonResponse(['error' => 'Authentication required'], 401);
     $id = isset($input['id']) ? (int)$input['id'] : null;
     $newPin = $input['new_pin'] ?? '';
     if (!$id || !preg_match('/^\d{4,8}$/', $newPin)) {
         jsonResponse(['error' => 'User ID and 4-8 digit new PIN required'], 400);
+    }
+    if (isWeakPin($newPin)) {
+        jsonResponse(['error' => 'That PIN is too common. Choose something less predictable.'], 400);
     }
     if (pinExists($db, $newPin)) {
         jsonResponse(['error' => 'That PIN is already in use. Choose a different one.'], 409);
@@ -635,7 +705,9 @@ if ($uri === '/api/emergency-unlock' && $method === 'POST') {
         jsonResponse(['error' => 'Emergency unlock not enabled. Set emergency_unlock => true in config.php first.'], 403);
     }
     $input = json_decode(file_get_contents('php://input'), true);
-    $userId = isset($input['user_id']) ? (int)$input['user_id'] : null;
+    $session = checkSession($input['session_token'] ?? '');
+    if (!$session) jsonResponse(['error' => 'Authentication required'], 401);
+    $userId = $session['id'];
     $count = $db->exec("DELETE FROM rate_limits");
     logAdminAction($db, 'emergency_unlock', "Cleared all PIN lockouts ($count rows)", $userId);
     jsonResponse(['success' => true, 'cleared' => (int)$count, 'note' => "Set emergency_unlock back to false in config.php now."]);
@@ -695,7 +767,11 @@ if ($uri === '/api/auth' && $method === 'POST') {
         jsonResponse(['error' => 'PIN not recognized'], 401);
     }
     dbExecWithRetry($db, "DELETE FROM rate_limits WHERE ip = ?", [$ip]);
-    jsonResponse(['user' => ['id' => (int)$match['id'], 'name' => $match['name']]]);
+    // Clean old sessions for this user, then create a new one
+    $db->prepare("DELETE FROM sessions WHERE user_id = ?")->execute([$match['id']]);
+    $token = bin2hex(random_bytes(32));
+    $db->prepare("INSERT INTO sessions (user_id, token) VALUES (?, ?)")->execute([$match['id'], $token]);
+    jsonResponse(['user' => ['id' => (int)$match['id'], 'name' => $match['name'], 'session_token' => $token]]);
 }
 
 // --- API: Meal Plan ---

@@ -34,6 +34,7 @@ try {
     $db->exec("DELETE FROM ledger");
     $db->exec("DELETE FROM products");
     $db->exec("DELETE FROM rate_limits");
+    $db->exec("DELETE FROM sessions");
     $db->exec("DELETE FROM users");
 
     $hash = password_hash('1234', PASSWORD_DEFAULT);
@@ -41,7 +42,7 @@ try {
     $stmt->execute(['Default user', $hash]);
 
     echo "Database reset complete.\n";
-    echo "  - All inventory, ledger, products, rate limits cleared\n";
+    echo "  - All inventory, ledger, products, rate limits, sessions cleared\n";
     echo "  - Default user restored: PIN 1234\n";
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
