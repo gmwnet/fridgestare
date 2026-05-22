@@ -688,6 +688,45 @@ if (page === 'home') {
 
 var invpData = [];
 
+var invEditUpc = null;
+
+function openInvEdit(item) {
+    invEditUpc = item.upc;
+    $('invEditName').value = item.name;
+    renderInvEditTags(item.tags || []);
+    $('invEditOverlay').style.display = 'flex';
+}
+
+function closeInvEdit() {
+    $('invEditOverlay').style.display = 'none';
+    invEditUpc = null;
+}
+
+function renderInvEditTags(selected) {
+    var c = $('invEditTags');
+    while (c.firstChild) c.removeChild(c.firstChild);
+    ['Protein','Main','Sauce','Side','Snack','Dessert','Use Soon','Staple'].forEach(function(tag) {
+      var btn = dom('button', {'class':'tag-btn', 'data-tag':tag}, tag);
+      if (selected.includes(tag)) btn.classList.add('active');
+      btn.addEventListener('click', function() {
+        if (btn.classList.contains('active')) {
+          btn.classList.remove('active');
+        } else {
+          btn.classList.add('active');
+        }
+      });
+      c.appendChild(btn);
+    });
+}
+
+function getInvEditTags() {
+    var tags = [];
+    $('invEditTags').querySelectorAll('.tag-btn.active').forEach(function(btn) {
+      tags.push(btn.dataset.tag);
+    });
+    return tags;
+}
+
 function renderInvPage() {
     var list = $('invpList');
     while (list.firstChild) list.removeChild(list.firstChild);
@@ -706,6 +745,9 @@ function renderInvPage() {
         var d = await apiAction(this.dataset.upc, 'add');
         if (d.success) loadInvPage();
       });
+      name.addEventListener('click', function() {
+        openInvEdit(item);
+      });
       list.appendChild(dom('div', {'class':'invp-item'}, name, qty, take, add));
     });
 }
@@ -720,6 +762,25 @@ async function loadInvPage() {
 }
 
 $('invpFilter').addEventListener('input', renderInvPage);
+async function updateProduct(upc, name, tags) {
+  var res = await fetch(apiUrl('/api/product-update'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ upc: upc, name: name, tags: tags, session_token: sessionToken() })
+  });
+  if (res.status === 401) { expireSession(); return { success: false }; }
+  return res.json();
+}
+
+$('invEditSave').addEventListener('click', async function() {
+    var name = $('invEditName').value.trim();
+    if (!name) return;
+    var tags = getInvEditTags();
+    var d = await updateProduct(invEditUpc, name, tags);
+    if (d.success) { closeInvEdit(); loadInvPage(); }
+});
+$('invEditCancel').addEventListener('click', closeInvEdit);
+$('invEditOverlay').addEventListener('click', function(e) { if (e.target === this) closeInvEdit(); });
 $('invpExport').addEventListener('click', function() {
   var csv = 'Name,Quantity\n';
   invpData.forEach(function(item) { csv += '"' + item.name.replace(/"/g,'""') + '",' + item.qty + '\n'; });

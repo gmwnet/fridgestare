@@ -424,7 +424,7 @@ if ($uri === '/api/action' && $method === 'POST') {
 // --- API: Inventory ---
 if ($uri === '/api/inventory' && $method === 'GET') {
     $stmt = $db->query(
-        "SELECT i.upc, COALESCE(p.name, 'Unknown Product') AS name, i.quantity, i.updated_at
+        "SELECT i.upc, COALESCE(p.name, 'Unknown Product') AS name, p.brand, p.tags, i.quantity, i.updated_at
          FROM inventory i
          LEFT JOIN products p ON i.upc = p.upc
          WHERE i.quantity > 0
@@ -432,7 +432,8 @@ if ($uri === '/api/inventory' && $method === 'GET') {
     );
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
     jsonResponse(['items' => array_map(function ($r) {
-        return ['upc' => $r['upc'], 'name' => $r['name'], 'qty' => (int)$r['quantity']];
+        $tags = $r['tags'] ? json_decode($r['tags'], true) : [];
+        return ['upc' => $r['upc'], 'name' => $r['name'], 'brand' => $r['brand'], 'tags' => $tags, 'qty' => (int)$r['quantity']];
     }, $items)]);
 }
 
@@ -561,6 +562,27 @@ if ($uri === '/api/tag' && $method === 'POST') {
     );
     $stmt->execute([$upc, json_encode($cleanTags)]);
     jsonResponse(['success' => true, 'tags' => $cleanTags]);
+}
+
+// --- API: Update Product (name + tags) ---
+if ($uri === '/api/product-update' && $method === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!checkSession($input['session_token'] ?? '')) jsonResponse(['error' => 'Authentication required'], 401);
+    $rawUpc = $input['upc'] ?? '';
+    $name = trim($input['name'] ?? '');
+    $tags = $input['tags'] ?? [];
+    if (!preg_match('/^\d{8,14}$/', $rawUpc)) jsonResponse(['error' => 'Invalid UPC'], 400);
+    if ($name === '') jsonResponse(['error' => 'Name is required'], 400);
+    $upc = normalizeUpc($rawUpc);
+    $validTags = ['Protein', 'Main', 'Sauce', 'Side', 'Snack', 'Dessert', 'Use Soon', 'Staple'];
+    $cleanTags = array_values(array_filter($tags, function($t) use ($validTags) { return in_array($t, $validTags, true); }));
+    $stmt = $db->prepare(
+        "INSERT INTO products (upc, name, tags, fetched_at)
+         VALUES (?, ?, ?, datetime('now'))
+         ON CONFLICT(upc) DO UPDATE SET name = excluded.name, tags = excluded.tags"
+    );
+    $stmt->execute([$upc, $name, json_encode($cleanTags)]);
+    jsonResponse(['success' => true, 'name' => $name, 'tags' => $cleanTags]);
 }
 
 // --- API: Config ---
@@ -990,7 +1012,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #invPage h2{font-size:18px;margin-bottom:12px}
 .invp-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #333}
 .invp-item:last-child{border-bottom:none}
-.invp-name{flex:1;font-size:15px;font-weight:500}
+.invp-name{flex:1;font-size:15px;font-weight:500;cursor:pointer;padding:4px 0}.invp-name:hover{color:#7BC980}
 .invp-qty{font-size:15px;color:#34c759;font-weight:600;min-width:24px;text-align:center}
 .invp-btn{padding:8px 16px;font-size:16px;font-weight:600;border:none;border-radius:8px;cursor:pointer;touch-action:manipulation;min-width:48px}
 .invp-add{background:#34c759;color:#fff}
@@ -1103,6 +1125,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button id="invpExport" style="padding:10px 14px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;font-size:15px;cursor:pointer;white-space:nowrap">CSV</button>
   </div>
   <div id="invpList"></div>
+  <div id="invEditOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:200;justify-content:center;align-items:center;padding:16px">
+    <div style="background:#1a1a1a;border-radius:12px;padding:20px;max-width:400px;width:100%">
+      <h3 style="margin:0 0 12px;font-size:17px">Edit Item</h3>
+      <div style="position:relative">
+        <input type="text" id="invEditName" class="edit-field" placeholder="Product name" autocomplete="off" style="margin-bottom:8px">
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px" id="invEditTags"></div>
+      <div style="display:flex;gap:10px">
+        <button id="invEditSave" style="flex:1;padding:12px;font-size:15px;font-weight:600;border:none;border-radius:8px;background:#34c759;color:#fff;cursor:pointer">Save</button>
+        <button id="invEditCancel" style="flex:1;padding:12px;font-size:15px;font-weight:600;border:none;border-radius:8px;background:#555;color:#fff;cursor:pointer">Cancel</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <?php elseif ($page === 'ledger'): ?>
