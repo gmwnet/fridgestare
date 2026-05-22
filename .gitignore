@@ -1,2 +1,5 @@
 fridgestare.db
 config.php
+_version_backups/
+_upgrade_backup/
+_upgrade_tmp/

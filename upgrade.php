@@ -15,8 +15,9 @@ $githubApi  = "https://api.github.com/repos/$repoOwner/$repoName/releases/latest
 $currentDir = __DIR__;
 $dbPath     = $currentDir . '/fridgestare.db';
 $configPath = $currentDir . '/config.php';
-$backupDir  = $currentDir . '/_upgrade_backup';
-$tmpDir     = $currentDir . '/_upgrade_tmp';
+$backupDir     = $currentDir . '/_upgrade_backup';
+$versionBackup = $currentDir . '/_version_backups';
+$tmpDir        = $currentDir . '/_upgrade_tmp';
 
 // --- Helpers ---
 
@@ -114,8 +115,28 @@ function downloadAndExtract($url, $targetDir) {
     return null;
 }
 
+function zipBackupSite($sourceDir, $destDir, $version) {
+    if (!is_dir($destDir)) mkdir($destDir, 0755, true);
+    $ts = date('Ymd-His');
+    $zipFile = "{$destDir}/fridgestare-v{$version}-{$ts}.zip";
+    $zip = new ZipArchive;
+    if ($zip->open($zipFile, ZipArchive::CREATE) !== true) return null;
+    $exclude = ['_version_backups', '_upgrade_backup', '_upgrade_tmp'];
+    $it = new RecursiveDirectoryIterator($sourceDir, RecursiveDirectoryIterator::SKIP_DOTS);
+    $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::SELF_FIRST);
+    foreach ($files as $f) {
+        $rel = substr($f->getRealPath(), strlen($sourceDir) + 1);
+        $parts = explode(DIRECTORY_SEPARATOR, $rel);
+        if (in_array($parts[0], $exclude)) continue;
+        if ($f->isDir()) { $zip->addEmptyDir($rel); }
+        else { $zip->addFile($f->getRealPath(), $rel); }
+    }
+    $zip->close();
+    return $zipFile;
+}
+
 function copyNewFiles($sourceDir, $destDir) {
-    $exclude = ['config.php', 'fridgestare.db', '_upgrade_backup', '_upgrade_tmp'];
+    $exclude = ['config.php', 'fridgestare.db', '_version_backups', '_upgrade_backup', '_upgrade_tmp'];
     $it = new RecursiveDirectoryIterator($sourceDir, RecursiveDirectoryIterator::SKIP_DOTS);
     $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::SELF_FIRST);
     $copied = [];
@@ -203,6 +224,7 @@ echo "Upgrade available: v$currentVer \u{2192} v$latestTag\n";
 
 // 4. Confirmation
 echo "\nThis will:\n";
+echo "  - Create a full-site zip snapshot in _version_backups/\n";
 echo "  - Back up config.php and fridgestare.db to _upgrade_backup/\n";
 echo "  - Download and extract v$latestTag from GitHub\n";
 echo "  - Overwrite all files except config.php and fridgestare.db\n";
@@ -217,11 +239,19 @@ if ($input !== 'yes') {
     exit(1);
 }
 
-// 5. Backup
-echo "\nBacking up config.php and fridgestare.db...\n";
+// 5. Full-site zip snapshot
+echo "\nCreating full-site snapshot...\n";
+$snapshot = zipBackupSite($currentDir, $versionBackup, $currentVer);
+if ($snapshot) {
+    echo "  Snapshot saved: $snapshot\n";
+} else {
+    echo "  Warning: could not create zip snapshot (continuing anyway).\n";
+}
+
+echo "Backing up config.php and fridgestare.db...\n";
 backupFile($configPath, $backupDir);
 backupFile($dbPath, $backupDir);
-echo "  Backup saved to _upgrade_backup/\n";
+echo "  Individual backups saved to _upgrade_backup/\n";
 
 // 6. Download and extract
 echo "Downloading v$latestTag...\n";
@@ -275,4 +305,7 @@ rrmdir($tmpDir);
 
 echo "\n" . str_repeat('-', 50) . "\n";
 echo "Upgrade complete! FridgeStare is now at v$latestTag.\n";
-echo "Backup files are in _upgrade_backup/ — you can delete them after confirming everything works.\n";
+echo "\nBackups created:\n";
+echo "  Full site snapshot: _version_backups/ (keep or delete as you see fit)\n";
+echo "  Config + DB backup: _upgrade_backup/\n";
+echo "\nOld snapshots in _version_backups/ are harmless to leave — delete them whenever you want.\n";
