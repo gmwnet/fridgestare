@@ -81,8 +81,6 @@ php upgrade.php
 
 The script creates a full-site zip snapshot in `_version_backups/` before making any changes. All user data (`config.php`, `fridgestare.db`) is preserved.
 
-You can also attach `upgrade.php` to each GitHub Release as a standalone asset — users grab that one file, drop it in, and run it.
-
 ### Option 2: Docker
 
 ```bash
