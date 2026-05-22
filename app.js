@@ -1,4 +1,11 @@
 var cfg = JSON.parse(document.getElementById('groscan-config').textContent);
+var appVersion = cfg.version || '1.00';
+var prevVersion = localStorage.getItem('fs_version');
+if (prevVersion && prevVersion !== appVersion) {
+    localStorage.clear();
+    location.reload(true);
+}
+localStorage.setItem('fs_version', appVersion);
 var $ = function(id) { return document.getElementById(id); };
 var page = cfg.page;
 var turnstileKey = cfg.turnstileKey;

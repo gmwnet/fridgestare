@@ -1399,8 +1399,9 @@ foreach ($qtys as $v) {
     'sessionDays' => (int)($cfg['session_timeout_days'] ?? 30),
     'basePath' => $basePath,
     'scriptName' => $scriptName,
+    'version' => $cfg['version'] ?? '1.00',
 ]) ?></script>
-<?php if ($page === 'scan'): ?><script src="zbar-wasm.js"></script><?php endif; ?>
-<script src="app.js"></script>
+<?php if ($page === 'scan'): ?><script src="zbar-wasm.js?v=<?= htmlspecialchars($cfg['version'] ?? '1.00', ENT_QUOTES) ?>"></script><?php endif; ?>
+<script src="app.js?v=<?= htmlspecialchars($cfg['version'] ?? '1.00', ENT_QUOTES) ?>"></script>
 </body>
 </html>

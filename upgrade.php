@@ -146,8 +146,8 @@ function copyNewFiles($sourceDir, $destDir) {
 }
 
 function runMigrations($db, $fromVer, $toVer) {
-    // Each migration is keyed by target version and receives ($db).
-    // Runs all migrations between fromVer (exclusive) and toVer (inclusive).
+    // Ordered by version — runs all migrations between fromVer and toVer.
+    // This makes upgrades cumulative: going 1.00 → 1.02 runs both 1.01 and 1.02.
     $migrations = [
         // Example: '1.01' => function($db) {
         //     $db->exec("ALTER TABLE products ADD COLUMN new_col TEXT");
