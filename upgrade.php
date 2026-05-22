@@ -15,7 +15,6 @@ $githubApi  = "https://api.github.com/repos/$repoOwner/$repoName/releases/latest
 $currentDir = __DIR__;
 $dbPath     = $currentDir . '/fridgestare.db';
 $configPath = $currentDir . '/config.php';
-$backupDir     = $currentDir . '/_upgrade_backup';
 $versionBackup = $currentDir . '/_version_backups';
 $tmpDir        = $currentDir . '/_upgrade_tmp';
 
@@ -48,14 +47,6 @@ function fetchJson($url) {
     if (!is_array($data)) return [null, 'Invalid response from GitHub'];
     if (isset($data['message'])) return [null, 'GitHub API: ' . $data['message']];
     return [$data, null];
-}
-
-function backupFile($path, $backupDir) {
-    if (!file_exists($path)) return;
-    if (!is_dir($backupDir)) mkdir($backupDir, 0755, true);
-    $ts = date('Ymd-His');
-    $base = basename($path);
-    copy($path, "{$backupDir}/{$ts}_{$base}");
 }
 
 function rrmdir($dir) {
@@ -121,7 +112,7 @@ function zipBackupSite($sourceDir, $destDir, $version) {
     $zipFile = "{$destDir}/fridgestare-v{$version}-{$ts}.zip";
     $zip = new ZipArchive;
     if ($zip->open($zipFile, ZipArchive::CREATE) !== true) return null;
-    $exclude = ['_version_backups', '_upgrade_backup', '_upgrade_tmp'];
+    $exclude = ['_version_backups', '_upgrade_tmp'];
     $it = new RecursiveDirectoryIterator($sourceDir, RecursiveDirectoryIterator::SKIP_DOTS);
     $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::SELF_FIRST);
     foreach ($files as $f) {
@@ -136,7 +127,7 @@ function zipBackupSite($sourceDir, $destDir, $version) {
 }
 
 function copyNewFiles($sourceDir, $destDir) {
-    $exclude = ['config.php', 'fridgestare.db', '_version_backups', '_upgrade_backup', '_upgrade_tmp'];
+    $exclude = ['config.php', 'fridgestare.db', '_version_backups', '_upgrade_tmp'];
     $it = new RecursiveDirectoryIterator($sourceDir, RecursiveDirectoryIterator::SKIP_DOTS);
     $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::SELF_FIRST);
     $copied = [];
@@ -225,7 +216,6 @@ echo "Upgrade available: v$currentVer \u{2192} v$latestTag\n";
 // 4. Confirmation
 echo "\nThis will:\n";
 echo "  - Create a full-site zip snapshot in _version_backups/\n";
-echo "  - Back up config.php and fridgestare.db to _upgrade_backup/\n";
 echo "  - Download and extract v$latestTag from GitHub\n";
 echo "  - Overwrite all files except config.php and fridgestare.db\n";
 echo "  - Run any database migrations\n";
@@ -248,11 +238,6 @@ if ($snapshot) {
     echo "  Warning: could not create zip snapshot (continuing anyway).\n";
 }
 
-echo "Backing up config.php and fridgestare.db...\n";
-backupFile($configPath, $backupDir);
-backupFile($dbPath, $backupDir);
-echo "  Individual backups saved to _upgrade_backup/\n";
-
 // 6. Download and extract
 echo "Downloading v$latestTag...\n";
 if (is_dir($tmpDir)) rrmdir($tmpDir);
@@ -260,7 +245,7 @@ mkdir($tmpDir, 0755, true);
 $dlErr = downloadAndExtract($latestZip, $tmpDir);
 if ($dlErr) {
     echo "Error: $dlErr\n";
-    echo "Backup files are in _upgrade_backup/. You can restore manually.\n";
+    echo "The snapshot in _version_backups/ is intact — nothing has changed.\n";
     rrmdir($tmpDir);
     exit(1);
 }
@@ -281,7 +266,7 @@ if (file_exists($dbPath)) {
         echo "  $migrated migration(s) applied.\n";
     } catch (Exception $e) {
         echo "  Error running migrations: " . $e->getMessage() . "\n";
-        echo "  Your data is backed up in _upgrade_backup/. You may need to restore.\n";
+        echo "  Restore from the snapshot in _version_backups/ if needed.\n";
         rrmdir($tmpDir);
         exit(1);
     }
@@ -305,7 +290,5 @@ rrmdir($tmpDir);
 
 echo "\n" . str_repeat('-', 50) . "\n";
 echo "Upgrade complete! FridgeStare is now at v$latestTag.\n";
-echo "\nBackups created:\n";
-echo "  Full site snapshot: _version_backups/ (keep or delete as you see fit)\n";
-echo "  Config + DB backup: _upgrade_backup/\n";
-echo "\nOld snapshots in _version_backups/ are harmless to leave — delete them whenever you want.\n";
+echo "\nA full-site snapshot was saved to _version_backups/.\n";
+echo "Old snapshots there are harmless to leave — delete them whenever you want.\n";
