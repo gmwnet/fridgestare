@@ -65,7 +65,7 @@ Requirements: PHP 7.4+ with `php-sqlite3`, Apache with `mod_rewrite`.
 
 ### Upgrading
 
-Existing users don't need to download full releases. Just grab the standalone upgrade script:
+Existing users don't need to download full releases. `upgrade.php` is attached to every release on GitHub — grab just that one file:
 
 ```bash
 # 1. Make sure php-zip is installed (only needed for upgrades)
@@ -73,6 +73,9 @@ Existing users don't need to download full releases. Just grab the standalone up
 #    RHEL/Fedora:   sudo dnf install php-zip
 
 # 2. Download upgrade.php into your FridgeStare directory
+#    Find it attached to the latest release at:
+#    https://github.com/gmwnet/fridgestare/releases/latest
+#    Or download directly:
 curl -LO https://github.com/gmwnet/fridgestare/releases/latest/download/upgrade.php
 
 # 3. Run it — it backs up, downloads the latest release, and upgrades everything
