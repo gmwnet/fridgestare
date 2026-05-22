@@ -1121,12 +1121,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <?php elseif ($page === 'inventory'): ?>
 
 <div id="invPage">
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-    <h2 style="margin:0;flex:1">Inventory</h2>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    <h2 style="margin:0;white-space:nowrap">Inventory</h2>
+    <input type="text" id="invpFilter" placeholder="Filter items..." style="flex:1;padding:10px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;outline:none;min-width:0">
     <button id="invpGroupToggle" style="padding:6px 12px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;font-size:13px;cursor:pointer;white-space:nowrap" title="Toggle group by tags">Group</button>
-  </div>
-  <div style="display:flex;gap:8px;margin-bottom:8px">
-    <input type="text" id="invpFilter" placeholder="Filter items..." style="flex:1;padding:10px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;outline:none">
     <button id="invpExport" style="padding:10px 14px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;font-size:15px;cursor:pointer;white-space:nowrap">CSV</button>
   </div>
   <div id="invpList"></div>
