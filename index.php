@@ -1017,6 +1017,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .invp-btn{padding:8px 16px;font-size:16px;font-weight:600;border:none;border-radius:8px;cursor:pointer;touch-action:manipulation;min-width:48px}
 .invp-add{background:#34c759;color:#fff}
 .invp-take{background:#ff9500;color:#fff}
+.invp-group-header{padding:6px 0 4px;margin-top:8px;font-size:13px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #333}
+.invp-group-header:first-child{margin-top:0}
 #lgPage{flex:1;overflow-y:auto;padding:12px 16px 8px}
 #lgPage h2{font-size:18px;margin-bottom:12px}
 .lg-entry{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #333;font-size:13px}
@@ -1119,7 +1121,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 <?php elseif ($page === 'inventory'): ?>
 
 <div id="invPage">
-  <h2>Inventory</h2>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+    <h2 style="margin:0;flex:1">Inventory</h2>
+    <button id="invpGroupToggle" style="padding:6px 12px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;font-size:13px;cursor:pointer;white-space:nowrap" title="Toggle group by tags">Group</button>
+  </div>
   <div style="display:flex;gap:8px;margin-bottom:8px">
     <input type="text" id="invpFilter" placeholder="Filter items..." style="flex:1;padding:10px 12px;font-size:15px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;outline:none">
     <button id="invpExport" style="padding:10px 14px;border:1px solid #555;border-radius:6px;background:#222;color:#fff;font-size:15px;cursor:pointer;white-space:nowrap">CSV</button>

@@ -694,6 +694,7 @@ if (page === 'home') {
 } else if (page === 'inventory') {
 
 var invpData = [];
+var invGrouped = false;
 
 var invEditUpc = null;
 
@@ -738,8 +739,8 @@ function renderInvPage() {
     var list = $('invpList');
     while (list.firstChild) list.removeChild(list.firstChild);
     var q = ($('invpFilter').value || '').toLowerCase();
-    invpData.forEach(function(item) {
-      if (q && item.name.toLowerCase().indexOf(q) < 0) return;
+
+    function buildItemRow(item) {
       var name = dom('span', {'class':'invp-name'}, esc(item.name));
       var qty = dom('span', {'class':'invp-qty'}, String(item.qty));
       var take = dom('button', {'class':'invp-btn invp-take', 'data-upc':item.upc, 'data-action':'take'}, '\u2212');
@@ -755,8 +756,36 @@ function renderInvPage() {
       name.addEventListener('click', function() {
         openInvEdit(item);
       });
-      list.appendChild(dom('div', {'class':'invp-item'}, name, qty, take, add));
-    });
+      return dom('div', {'class':'invp-item'}, name, qty, take, add);
+    }
+
+    if (invGrouped) {
+      var tagOrder = ['Protein','Main','Sauce','Side','Snack','Dessert','Use Soon','Staple'];
+      var grouped = {};
+      tagOrder.forEach(function(t) { grouped[t] = []; });
+      grouped['Untagged'] = [];
+      invpData.forEach(function(item) {
+        if (q && item.name.toLowerCase().indexOf(q) < 0) return;
+        var tags = (item.tags && item.tags.length > 0) ? item.tags : ['Untagged'];
+        tags.forEach(function(t) {
+          if (grouped[t]) grouped[t].push(item);
+        });
+      });
+      tagOrder.forEach(function(t) {
+        if (grouped[t].length === 0) return;
+        list.appendChild(dom('div', {'class':'invp-group-header'}, t));
+        grouped[t].forEach(function(item) { list.appendChild(buildItemRow(item)); });
+      });
+      if (grouped['Untagged'].length > 0) {
+        list.appendChild(dom('div', {'class':'invp-group-header'}, 'Untagged'));
+        grouped['Untagged'].forEach(function(item) { list.appendChild(buildItemRow(item)); });
+      }
+    } else {
+      invpData.forEach(function(item) {
+        if (q && item.name.toLowerCase().indexOf(q) < 0) return;
+        list.appendChild(buildItemRow(item));
+      });
+    }
 }
 
 async function loadInvPage() {
@@ -769,6 +798,11 @@ async function loadInvPage() {
 }
 
 $('invpFilter').addEventListener('input', renderInvPage);
+$('invpGroupToggle').addEventListener('click', function() {
+    invGrouped = !invGrouped;
+    this.textContent = invGrouped ? 'List' : 'Group';
+    renderInvPage();
+});
 async function updateProduct(upc, name, tags) {
   var res = await fetch(apiUrl('/api/product-update'), {
     method: 'POST',
