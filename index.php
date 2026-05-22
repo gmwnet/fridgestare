@@ -1017,7 +1017,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .invp-btn{padding:8px 16px;font-size:16px;font-weight:600;border:none;border-radius:8px;cursor:pointer;touch-action:manipulation;min-width:48px}
 .invp-add{background:#34c759;color:#fff}
 .invp-take{background:#ff9500;color:#fff}
-.invp-group-header{padding:6px 0 4px;margin-top:8px;font-size:13px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #333}
+.invp-group-header{padding:6px 0 4px;margin-top:16px;font-size:13px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid #333}
 .invp-group-header:first-child{margin-top:0}
 #lgPage{flex:1;overflow-y:auto;padding:12px 16px 8px}
 #lgPage h2{font-size:18px;margin-bottom:12px}
