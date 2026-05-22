@@ -3,7 +3,7 @@ var appVersion = cfg.version || '1.00';
 var prevVersion = localStorage.getItem('fs_version');
 if (prevVersion && prevVersion !== appVersion) {
     localStorage.clear();
-    location.reload(true);
+    location.reload();
 }
 localStorage.setItem('fs_version', appVersion);
 var $ = function(id) { return document.getElementById(id); };
