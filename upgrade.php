@@ -72,21 +72,10 @@ function downloadAndExtract($url, $targetDir) {
     file_put_contents($zipFile, $zipData);
     $zip = new ZipArchive;
     if ($zip->open($zipFile) !== true) { unlink($zipFile); return 'Invalid zip archive'; }
-    // The zip contains a root folder named {repo}-{ref}/ — extract everything inside it
-    $rootLen = null;
-    for ($i = 0; $i < $zip->numEntries; $i++) {
-        $name = $zip->getNameIndex($i);
-        $pos = strpos($name, '/');
-        if ($pos !== false) {
-            $rootLen = $pos + 1;
-            break;
-        }
-    }
-    if ($rootLen === null) { $zip->close(); unlink($zipFile); return 'Unexpected archive structure'; }
     $zip->extractTo($targetDir);
     $zip->close();
     unlink($zipFile);
-    // Move files out of the root folder into targetDir
+    // GitHub zipballs have a root folder like {repo}-{sha}/ — move contents up
     $subDirs = glob($targetDir . '/*', GLOB_ONLYDIR);
     $extractedRoot = reset($subDirs);
     if ($extractedRoot && is_dir($extractedRoot)) {
