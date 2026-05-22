@@ -135,19 +135,11 @@ function copyNewFiles($sourceDir, $destDir) {
 }
 
 function runMigrations($db, $fromVer, $toVer) {
-    // Ordered by version — runs all migrations between fromVer and toVer.
-    // This makes upgrades cumulative: going 1.00 → 1.02 runs both 1.01 and 1.02.
-    $migrations = [
-        // Example: '1.01' => function($db) {
-        //     $db->exec("ALTER TABLE products ADD COLUMN new_col TEXT");
-        // },
-    ];
+    $pending = pendingMigrations($fromVer, $toVer);
     $ran = 0;
-    foreach ($migrations as $ver => $fn) {
-        if (version_compare($ver, $fromVer) > 0 && version_compare($ver, $toVer) <= 0) {
-            $fn($db);
-            $ran++;
-        }
+    foreach ($pending as $fn) {
+        $fn($db);
+        $ran++;
     }
     return $ran;
 }
@@ -165,6 +157,21 @@ function mergeConfigKeys($currentCfg, $newExamplePath) {
         }
     }
     return [$currentCfg, $changed];
+}
+
+function pendingMigrations($fromVer, $toVer) {
+    $migrations = [
+        // Example: '1.01' => function($db) {
+        //     $db->exec("ALTER TABLE products ADD COLUMN new_col TEXT");
+        // },
+    ];
+    $pending = [];
+    foreach ($migrations as $ver => $fn) {
+        if (version_compare($ver, $fromVer) > 0 && version_compare($ver, $toVer) <= 0) {
+            $pending[$ver] = $fn;
+        }
+    }
+    return $pending;
 }
 
 // --- Main ---
@@ -247,17 +254,27 @@ echo "  " . count($copied) . " files updated.\n";
 
 // 8. Run DB migrations
 echo "Checking database migrations...\n";
+$pending = pendingMigrations($currentVer, $latestTag);
 if (file_exists($dbPath)) {
-    try {
-        $db = new PDO('sqlite:' . $dbPath);
-        $db->exec("PRAGMA journal_mode=WAL");
-        $migrated = runMigrations($db, $currentVer, $latestTag);
-        echo "  $migrated migration(s) applied.\n";
-    } catch (Exception $e) {
-        echo "  Error running migrations: " . $e->getMessage() . "\n";
-        echo "  Restore from the snapshot in _version_backups/ if needed.\n";
-        rrmdir($tmpDir);
-        exit(1);
+    if (count($pending) > 0) {
+        if (!is_writable($dbPath)) {
+            echo "  Warning: database is not writable by this user — skipping migrations.\n";
+            echo "  Run this script as the web server user or chmod the database.\n";
+        } else {
+            try {
+                $db = new PDO('sqlite:' . $dbPath);
+                $db->exec("PRAGMA journal_mode=WAL");
+                $migrated = runMigrations($db, $currentVer, $latestTag);
+                echo "  $migrated migration(s) applied.\n";
+            } catch (Exception $e) {
+                echo "  Error running migrations: " . $e->getMessage() . "\n";
+                echo "  Restore from the snapshot in _version_backups/ if needed.\n";
+                rrmdir($tmpDir);
+                exit(1);
+            }
+        }
+    } else {
+        echo "  No pending migrations — skipping.\n";
     }
 } else {
     echo "  No database found — skipping migrations (fresh install).\n";
