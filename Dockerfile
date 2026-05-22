@@ -1,10 +1,11 @@
 FROM php:8.2-apache
 
-# Install SQLite support and zbar-tools
+# Install SQLite support, zip, and zbar-tools
 RUN apt-get update && apt-get install -y \
     libsqlite3-dev \
+    libzip-dev \
     zbar-tools \
-    && docker-php-ext-install pdo_sqlite \
+    && docker-php-ext-install pdo_sqlite zip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

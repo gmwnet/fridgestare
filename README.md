@@ -1,4 +1,4 @@
-# FridgeStare
+# FridgeStare  v1.00
 
 <p align="center">
   <img src="apple-touch-icon.png" alt="FridgeStare" width="128">
@@ -38,11 +38,13 @@ The rule: if making it more complex doesn't make it noticeably better for a fami
 - **Audit ledger** — Every add, take, and admin action is logged with timestamps and usernames
 - **Configurable** — Timezone, session timeout, rate limits, Cloudflare Turnstile captcha, API keys
 - **Mobile-first** — Dark theme, touch-friendly UI, native camera integration
+- **Self-upgrading** — `php upgrade.php` checks GitHub, backs up, and applies new releases
 
 ## Requirements
 
 - PHP 7.4+ with `php-sqlite3` extension
 - Apache with `mod_rewrite` (or nginx with equivalent rewrite rules)
+- `php-zip` extension (only needed for the upgrade script — the app itself doesn't require it)
 
 ## Deployment
 
@@ -61,6 +63,17 @@ cp config.example.php config.php
 
 Requirements: PHP 7.4+ with `php-sqlite3`, Apache with `mod_rewrite`.
 
+### Upgrading
+
+```bash
+# Backs up your site, downloads the latest release, updates files and DB
+php upgrade.php
+```
+
+The script creates a full-site zip snapshot in `_version_backups/` before making any changes. Snapshots accumulate across releases — delete old ones whenever you want.
+
+All user data (`config.php`, `fridgestare.db`) is preserved. If something goes wrong, restore from the snapshot.
+
 ### Option 2: Docker
 
 ```bash
@@ -68,7 +81,28 @@ docker-compose up -d
 # App available at http://localhost:8420
 ```
 
-The Docker image uses PHP 8.2 Apache with SQLite and zbarimg pre-installed. It strips any local API keys and writes clean defaults. The database is stored in a named Docker volume (survives restarts).
+The Docker image uses PHP 8.2 Apache with SQLite, zbarimg, and `php-zip` pre-installed. It strips any local API keys and writes clean defaults.
+
+To upgrade, either rebuild the image or run the upgrade script inside the container:
+
+```bash
+# Option A: Rebuild image
+docker-compose build && docker-compose up -d
+
+# Option B: Upgrade in-place (preserves snapshot history)
+docker exec -it <container> php /var/www/html/upgrade.php
+```
+
+> **Note:** Your database (`fridgestare.db`) lives inside the container by default and will be lost on container rebuild unless you mount a volume. To persist data across rebuilds, add a volume to `docker-compose.yml`:
+> ```yaml
+> volumes:
+>   - fridgestare_data:/var/www/html/fridgestare.db
+> ```
+> Or mount the host directory directly:
+> ```yaml
+> volumes:
+>   - ./data:/var/www/html
+> ```
 
 ## Configuration
 
