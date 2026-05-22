@@ -1251,6 +1251,9 @@ foreach ($qtys as $v) {
       <p style="color:#888;font-size:13px;margin-bottom:8px">User accounts and PIN management</p>
       <a href="<?= $scriptName ?>?route=/users" style="display:inline-block;padding:10px 20px;border:none;border-radius:8px;background:#007aff;color:#fff;font-size:15px;text-decoration:none;cursor:pointer">Manage Users &rarr;</a>
     </div>
+    <div style="margin-top:20px;padding-top:12px;border-top:1px solid #333;font-size:13px;color:#555;text-align:center">
+      Version <?= htmlspecialchars($cfg['version'] ?? '1.00', ENT_QUOTES) ?>
+    </div>
   </div>
   <div id="settingsHelpPopup"></div>
 </div>

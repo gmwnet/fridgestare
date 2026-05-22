@@ -10,4 +10,5 @@ return array (
   'default_qty' => 1,
   'emergency_unlock' => false,
   'debug' => false,
+  'version' => '1.00',
 );
