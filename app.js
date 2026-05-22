@@ -741,6 +741,8 @@ function renderInvPage() {
     var q = ($('invpFilter').value || '').toLowerCase();
 
     function buildItemRow(item) {
+      var rowClass = 'invp-item';
+      if (invGrouped) rowClass += ' indent';
       var name = dom('span', {'class':'invp-name'}, esc(item.name));
       var qty = dom('span', {'class':'invp-qty'}, String(item.qty));
       var take = dom('button', {'class':'invp-btn invp-take', 'data-upc':item.upc, 'data-action':'take'}, '\u2212');
@@ -756,7 +758,7 @@ function renderInvPage() {
       name.addEventListener('click', function() {
         openInvEdit(item);
       });
-      return dom('div', {'class':'invp-item'}, name, qty, take, add);
+      return dom('div', {'class':rowClass}, name, qty, take, add);
     }
 
     if (invGrouped) {

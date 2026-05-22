@@ -1012,6 +1012,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 #invPage h2{font-size:18px;margin-bottom:12px}
 .invp-item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #333}
 .invp-item:last-child{border-bottom:none}
+.invp-item.indent{padding-left:16px}
 .invp-name{flex:1;font-size:15px;font-weight:500;cursor:pointer;padding:4px 0}.invp-name:hover{color:#7BC980}
 .invp-qty{font-size:15px;color:#34c759;font-weight:600;min-width:24px;text-align:center}
 .invp-btn{padding:8px 16px;font-size:16px;font-weight:600;border:none;border-radius:8px;cursor:pointer;touch-action:manipulation;min-width:48px}
