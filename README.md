@@ -1,4 +1,4 @@
-# FridgeStare  v1.00
+# FridgeStare  v1.01
 
 <p align="center">
   <img src="apple-touch-icon.png" alt="FridgeStare" width="128">
