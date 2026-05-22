@@ -42,7 +42,7 @@ The rule: if making it more complex doesn't make it noticeably better for a fami
 
 ## Requirements
 
-- PHP 7.4+ with `php-sqlite3` extension
+- PHP 8.2+ with `php-sqlite3` extension
 - Apache with `mod_rewrite` (or nginx with equivalent rewrite rules)
 - `php-zip` extension (only needed for the upgrade script — the app itself doesn't require it)
 
@@ -61,7 +61,7 @@ cp config.example.php config.php
 # On first visit, the app auto-creates "Default user" / PIN 1234
 ```
 
-Requirements: PHP 7.4+ with `php-sqlite3`, Apache with `mod_rewrite`.
+Requirements: PHP 8.2+ with `php-sqlite3`, Apache with `mod_rewrite`.
 
 ### Upgrading
 
