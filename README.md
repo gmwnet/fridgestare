@@ -1,10 +1,17 @@
-# FridgeStare  v1.03
+# FridgeStare  v1.10
 
 <p align="center">
   <img src="apple-touch-icon.png" alt="FridgeStare" width="128">
 </p>
 
 ## Because 6pm comes every single day.
+
+## What's New in v1.1
+
+- **Group inventory by tag** — Toggle between flat list and tag-grouped view. Multi-tag items appear in each group. Click an item to edit its name or tags inline.
+- **Self-upgrading** — `php upgrade.php` checks GitHub, backs up your site, and upgrades everything. Full-site zip snapshots saved before each upgrade in `_version_backups/`.
+- **Cache busting** — JS assets load with version query params. On upgrade, open tabs auto-detect the change and hard-refresh to load the new UI.
+- **Upgrade script at your fingertips** — The "Check for upgrades" link on the Settings page points to the latest release. Download `upgrade.php` from any release and run it.
 
 There are a hundred of these apps. I built my own because I wanted exactly what I wanted — scan a UPC as you unpack groceries, tag it as a protein, side, or dessert, and when dinner comes around the planner gives you options based on what's actually in your kitchen. Because we've all stood in front of the fridge at 6pm, staring, with absolutely no plan, even though you just went shopping.
 
