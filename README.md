@@ -83,6 +83,16 @@ The script creates a full-site zip snapshot in `_version_backups/` before making
 
 You can also attach `upgrade.php` to each GitHub Release as a standalone asset — users grab that one file, drop it in, and run it.
 
+### Making a Release
+
+```bash
+# Tag and push — GitHub Actions auto-creates the release and attaches upgrade.php
+git tag v1.01
+git push origin v1.01
+```
+
+The CI workflow (`.github/workflows/release.yml`) generates release notes from commit history and attaches `upgrade.php` as a downloadable asset. Users get it at `https://github.com/gmwnet/fridgestare/releases/latest/download/upgrade.php`.
+
 ### Option 2: Docker
 
 ```bash
